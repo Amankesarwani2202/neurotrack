@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Color–Word Stroop</h2>
+  <p class="muted">Aim: Test attention and cognitive flexibility. Tap the button corresponding to the <b>color</b> of the word (not the word itself). 8 trials.</p>
+
+  <div class="center" style="margin-top:12px">
+    <div id="stroopWord" class="stroop-word">--</div>
+  </div>
+
+  <div id="stroopButtons" class="row" style="margin-top:12px"></div>
+  <div id="stroopResult" class="muted" style="margin-top:12px">No trials yet.</div>
+  <div style="margin-top:12px" class="row">
+    <button class="btn" id="btnStartStroop">Start 8 Trials</button>
+  </div>
+  <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+const colors = ['red','green','blue','orange']
+let stroopCorrect=0, stroopTotal=0, stroopTrials=8
+let startTime=0, correctTimes=[]
+const nextBtnContainer = document.getElementById('nextBtnContainer')
+
+function startStroop(){
+  stroopCorrect=0; stroopTotal=0; correctTimes=[]
+  document.getElementById('stroopResult').textContent = `Starting...`
+  document.getElementById('btnStartStroop').style.display='none';
+  nextBtnContainer.style.display='none';
+  setTimeout(nextTrial, 500);
+}
+document.getElementById('btnStartStroop').addEventListener('click', startStroop)
+
+function nextTrial(){
+  if(stroopTotal >= stroopTrials){ showSummary(); return }
+  const word = colors[Math.floor(Math.random()*colors.length)]
+  const color = colors[Math.floor(Math.random()*colors.length)]
+  const wEl = document.getElementById('stroopWord'); wEl.textContent = word.toUpperCase(); wEl.style.color = color
+  const btnRow = document.getElementById('stroopButtons'); btnRow.innerHTML = ''
+
+  startTime = performance.now()
+
+  colors.forEach(c=>{
+    const b = document.createElement('button'); b.className='btn ghost small'; b.style.background='white'; b.style.color='black'; b.textContent = c
+    b.onclick = ()=>{
+      const rt = performance.now() - startTime
+      stroopTotal++;
+      let msg = '';
+      if(c===color) {
+          stroopCorrect++;
+          correctTimes.push(rt);
+          msg = `Correct! (${Math.round(rt)}ms)`;
+      } else {
+          msg = `Incorrect!`;
+      }
+      document.getElementById('stroopResult').textContent = msg + ` — Score: ${stroopCorrect}/${stroopTotal}`;
+      setTimeout(nextTrial,300)
+    }
+    btnRow.appendChild(b)
+  })
+}
+
+function showSummary(){
+    let avgCorrectTime = 0;
+    if(correctTimes.length > 0){
+        avgCorrectTime = Math.round(correctTimes.reduce((a,b)=>a+b,0) / correctTimes.length);
+    }
+    document.getElementById('stroopResult').textContent =
+        `Final Score: ${stroopCorrect}/${stroopTotal} Correct. ` +
+        (correctTimes.length > 0 ? `Avg Reaction Time (Correct): ${avgCorrectTime}ms` : `No correct responses.`);
+
+    save(avgCorrectTime);
+    document.getElementById('btnStartStroop').style.display='block';
+    nextBtnContainer.style.display='flex';
+    addNextButton('nextBtnContainer', 'Memory', '/memory');
+}
+
+function save(avgTime){
+  localStorage.setItem('neuro_stroop', JSON.stringify({correct:stroopCorrect, total:stroopTotal, avg_rt: avgTime}))
+}
+</script>
+{% endblock %}

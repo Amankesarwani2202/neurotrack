@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Short-Term Memory</h2>
+  <p class="muted">Aim: Briefly view a short digit sequence and type it back from memory. Try to remember a 4-digit sequence.</p>
+
+  <div id="memoryPrompt" class="big"></div>
+  <div class="row" style="margin-top:12px">
+    <button class="btn" id="btnShow">Show Sequence</button>
+    <input id="memoryAnswer" placeholder="Type the digits here" />
+    <button class="btn ghost" id="btnCheck">Check</button>
+  </div>
+  <div id="memoryResult" class="muted" style="margin-top:12px">No attempts yet.</div>
+  <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+let currentSeq=''
+const nextBtnContainer = document.getElementById('nextBtnContainer')
+
+document.getElementById('btnShow').addEventListener('click', ()=>{
+  currentSeq = ''+Math.floor(1000+Math.random()*9000)
+  document.getElementById('memoryPrompt').textContent = currentSeq
+  document.getElementById('memoryAnswer').value = ''
+  document.getElementById('memoryResult').textContent = 'Remembering...'
+  nextBtnContainer.style.display='none';
+  setTimeout(()=>document.getElementById('memoryPrompt').textContent = '...', 1200)
+})
+
+document.getElementById('btnCheck').addEventListener('click', ()=>{
+  const ans = document.getElementById('memoryAnswer').value.trim()
+  if(!currentSeq || document.getElementById('memoryPrompt').textContent !== '...'){
+    alert('Show a sequence first, then wait for it to disappear.');
+    return
+  }
+  const ok = (ans===currentSeq)
+  document.getElementById('memoryResult').textContent = ok? 'Correct!':('Incorrect — was '+currentSeq)
+  localStorage.setItem('neuro_memory', JSON.stringify({correct: ok?1:0, total:1}))
+  nextBtnContainer.style.display='flex';
+  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
+})
+</script>
+{% endblock %}

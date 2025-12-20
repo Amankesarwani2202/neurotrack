@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Reaction Time Test</h2>
+  <p class="muted">Aim: Measure how quickly you press the button after the screen turns green. Do a few practice runs, then 5 official trials.</p>
+
+  <div class="info-row">
+    <div class="small">Game begins in: <span id="countdown">—</span></div>
+    <div class="small">Stopwatch: <span id="stopwatch">0.00s</span></div>
+  </div>
+
+  <div class="center" style="margin-top:14px">
+    <div id="target" class="target">Press Start</div>
+  </div>
+
+  <div class="row" style="margin-top:12px">
+    <button class="btn" id="btnStart">Start 5 Trials</button>
+    <button class="btn ghost" id="btnReset">Reset</button>
+  </div>
+
+  <div id="rtResults" class="muted" style="margin-top:12px">No trials yet.</div>
+  <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+const trialsToRun = 5
+let trials = []
+let waiting=false, started=false, startTs=0, timerInterval=null
+const target = document.getElementById('target')
+const countdownEl = document.getElementById('countdown')
+const stopwatchEl = document.getElementById('stopwatch')
+const resultsEl = document.getElementById('rtResults')
+const nextBtnContainer = document.getElementById('nextBtnContainer')
+document.getElementById('btnStart').addEventListener('click', ()=>beginSequence())
+document.getElementById('btnReset').addEventListener('click', ()=>{ trials=[]; resultsEl.textContent='Reset.'; nextBtnContainer.style.display='none'; updateSummary(); })
+
+async function beginSequence(){
+  trials = []
+  resultsEl.textContent = 'Preparing...'
+  nextBtnContainer.style.display='none';
+  await countdownStart(3)
+  runTrial()
+}
+
+function countdownStart(sec){
+  return new Promise(resolve=>{
+    let s = sec
+    countdownEl.textContent = s
+    const cd = setInterval(()=>{ s--; countdownEl.textContent = s>0?s:'GO'; if(s<=0){ clearInterval(cd); setTimeout(()=>{ countdownEl.textContent = '—'; resolve() },300) } },1000)
+  })
+}
+
+function runTrial(){
+  if(trials.length >= trialsToRun){ showSummary(); return }
+  target.textContent = 'Wait...'
+  target.classList.remove('green','tapme')
+  const delay = 900 + Math.random()*2000
+  waiting=true; startTs=0
+  timerInterval = null
+  const t = setTimeout(()=>{ target.textContent='TAP'; target.classList.add('green','tapme'); startTs = performance.now(); startStopwatch(); waiting=false }, delay)
+}
+
+target.addEventListener('click', ()=>{
+  if(target.classList.contains('tapme') && startTs>0){
+    const rt = performance.now() - startTs
+    trials.push(Math.round(rt))
+    stopStopwatch()
+    target.classList.remove('green','tapme')
+    target.textContent = 'Good'
+    updateSummary()
+    setTimeout(()=>{ if(trials.length < trialsToRun) runTrial(); else showSummary() }, 700)
+  }else{
+    if(waiting){
+      clearTimeout(t)
+      target.textContent = 'Too Early!'
+      setTimeout(()=>{ if(!target.classList.contains('tapme')) target.textContent='Wait...' },700)
+    }
+  }
+})
+
+function startStopwatch(){
+  let t0 = performance.now()
+  timerInterval = setInterval(()=>{ stopwatchEl.textContent = ((performance.now()-t0)/1000).toFixed(2)+'s' }, 50)
+}
+function stopStopwatch(){ if(timerInterval) clearInterval(timerInterval) }
+
+function showSummary(){
+  const avg = Math.round(trials.reduce((a,b)=>a+b,0)/trials.length)
+  resultsEl.textContent = `Trials: ${trials.join(', ')} ms  —  Avg: ${avg} ms`
+  updateSummary()
+  nextBtnContainer.style.display='flex';
+  addNextButton('nextBtnContainer', 'Stroop', '/stroop');
+}
+
+function updateSummary(){
+  localStorage.setItem('neuro_rt_trials', JSON.stringify(trials))
+}
+</script>
+{% endblock %}

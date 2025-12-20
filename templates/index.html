@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="card">
+    <h1>Welcome to NEUROTRACK</h1>
+    <p class="lead">A compact suite of quick cognitive & motor micro-tests. For best results, play <strong>all tests</strong> once.</p>
+
+    <div class="row" style="margin-top:10px;">
+        <button class="btn ghost small" onclick="clearSessionData()">Start New Session (Clear Data)</button>
+    </div>
+
+    <div style="margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:8px;">
+        <h3>1. Enter Your Name</h3>
+        <p class="muted">This name will be used on the final PDF report.</p>
+        <div class="row">
+            <input type="text" id="userNameInput" placeholder="Enter full name" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px;" />
+            <button class="btn" id="btnSaveName">Save Name</button>
+        </div>
+        <p id="nameStatus" class="muted" style="margin-top:10px;">Current User: <span id="currentName">Participant</span></p>
+    </div>
+
+    <h3 style="margin-top:20px;">2. Tests Overview</h3>
+    <ul>
+      <li><b>Reaction:</b> Measures how fast you respond.</li>
+      <li><b>Stroop:</b> Tests attention & cognitive flexibility, with reaction time.</li>
+      <li><b>Memory:</b> Short-term numeric memory recall.</li>
+      <li><b>Spiral:</b> Evaluate drawing smoothness and tremor.</li>
+    </ul>
+
+    <div class="row" style="margin-top:20px">
+      <a class="btn" href="/reaction">Start Reaction Test</a>
+    </div>
+  </section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+    const nameInput = document.getElementById('userNameInput');
+    const saveBtn = document.getElementById('btnSaveName');
+    const currentNameEl = document.getElementById('currentName');
+    const savedName = getUserName();
+    nameInput.value = (savedName !== 'Participant' ? savedName : '');
+    currentNameEl.textContent = savedName;
+
+    saveBtn.addEventListener('click', ()=>{
+        const name = nameInput.value.trim();
+        if(name){
+            saveUserName(name);
+            currentNameEl.textContent = name;
+            document.getElementById('nameStatus').textContent = `Name saved! Current User: ${name}`;
+        } else {
+            alert('Please enter a name.');
+        }
+    });
+});
+</script>
+{% endblock %}

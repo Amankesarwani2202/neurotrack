@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Session Results</h2>
+  <p class="muted">This page gathers local results from each test and sends them to the backend for analysis.</p>
+  <div class="row">
+    <button class="btn" id="btnGather">Gather & Send</button>
+    <button class="btn ghost" id="btnDownload">Download PDF</button>
+  </div>
+  <pre id="out" class="muted" style="margin-top:12px;white-space:pre-wrap"></pre>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+async function gather(){
+  const rt = JSON.parse(localStorage.getItem('neuro_rt_trials')||'[]')
+  const stroop = JSON.parse(localStorage.getItem('neuro_stroop')||'{"correct":0,"total":0, "avg_rt":0}')
+  const mem = JSON.parse(localStorage.getItem('neuro_memory')||'{"correct":0,"total":0}')
+  const spiral = JSON.parse(localStorage.getItem('neuro_spiral')||'[]')
+
+  const payload = {
+    user_name: getUserName(),
+    reaction_times: rt,
+    stroop_correct: stroop.correct,
+    stroop_total: stroop.total,
+    stroop_avg_rt: stroop.avg_rt,
+    memory_correct: mem.correct,
+    memory_total: mem.total,
+    spiral: { points: (spiral||[]).map(p=>({x:p.x,y:p.y,t:p.t})) },
+  }
+  document.getElementById('out').textContent = 'Sending to server...'
+  try{
+    const resp = await fetch('/analyze_all', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
+    const j = await resp.json()
+    document.getElementById('out').textContent = JSON.stringify(j, null, 2)
+    localStorage.setItem('neuro_last_analysis', JSON.stringify(j))
+  }catch(e){
+    document.getElementById('out').textContent = 'Error: '+e.message
+  }
+}
+document.getElementById('btnGather').addEventListener('click', gather)
+
+document.getElementById('btnDownload').addEventListener('click', async ()=>{
+  const last = JSON.parse(localStorage.getItem('neuro_last_analysis')||'{}')
+  const name = getUserName();
+  if(!last || !last.risk_index){ alert('Run Gather & Send first'); return }
+
+  const resp = await fetch('/report', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+          name: name,
+          results: last
+      })
+  })
+
+  if (!resp.ok) {
+      document.getElementById('out').textContent = `Error generating PDF: ${resp.status} ${resp.statusText}`;
+      alert('Error generating PDF. See the detailed error in the output box.');
+      return;
+  }
+
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const safeName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  a.download='neurotrack_Report_' + (safeName || 'Unknown') + '.pdf';
+  a.click()
+})
+</script>
+{% endblock %}

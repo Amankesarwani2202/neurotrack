@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NEUROTRACK</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="logo">NEUROTRACK</div>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/reaction">Reaction</a>
+      <a href="/stroop">Stroop</a>
+      <a href="/memory">Memory</a>
+      <a href="/spiral">Spiral</a>
+      <a href="/results">Results</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    NEUROTRACK • Play ALL tests for best analysis accuracy — this is not medical advice.
+  </footer>
+
+  <script>
+    function getUserName(){
+      return localStorage.getItem('neuro_user_name') || 'Participant';
+    }
+    function saveUserName(name){
+      localStorage.setItem('neuro_user_name', name);
+    }
+    function addNextButton(parentElId, testName, nextUrl){
+      const el = document.getElementById(parentElId);
+      const nextBtn = document.createElement('a');
+      nextBtn.className = 'btn';
+      nextBtn.href = nextUrl;
+      nextBtn.textContent = `Next Test: ${testName}`;
+      el.innerHTML = '';
+      el.appendChild(nextBtn);
+    }
+    function clearSessionData(){
+        if(confirm("Are you sure you want to clear all previous results and start a new session?")){
+            localStorage.removeItem('neuro_user_name');
+            localStorage.removeItem('neuro_rt_trials');
+            localStorage.removeItem('neuro_stroop');
+            localStorage.removeItem('neuro_memory');
+            localStorage.removeItem('neuro_spiral');
+            localStorage.removeItem('neuro_last_analysis');
+            alert("All session data cleared. Reloading page.");
+            window.location.reload();
+        }
+    }
+  </script>
+  <script src="/static/js/main.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
