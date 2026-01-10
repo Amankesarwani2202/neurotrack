@@ -1,72 +1,117 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h2>Session Results</h2>
-  <p class="muted">This page gathers local results from each test and sends them to the backend for analysis.</p>
+  <h2>Final Analysis & Report</h2>
+  <p class="muted">Click "Analyze My Results" to compile data from all 10 tests and generate your cognitive profile.</p>
+  
   <div class="row">
-    <button class="btn" id="btnGather">Gather & Send</button>
-    <button class="btn ghost" id="btnDownload">Download PDF</button>
+    <button class="btn" id="btnGather">Analyze My Results</button>
+    <button class="btn ghost" id="btnDownload">Download PDF Report</button>
   </div>
-  <pre id="out" class="muted" style="margin-top:12px;white-space:pre-wrap"></pre>
+
+  <div id="resultsSummary" style="margin-top:20px; display:none;">
+    <div class="card" style="background:#f8fafc; border-color:var(--accent2)">
+        <h3 class="center" style="margin-top:0">Overall Risk Index: <span id="riskValue" style="color:red">--</span></h3>
+        <p class="small center">0 = Lowest Risk | 100 = Highest Risk</p>
+    </div>
+  </div>
+
+  <pre id="out" class="muted" style="margin-top:12px; white-space:pre-wrap; font-size:12px; background:#f1f5f9; padding:10px; border-radius:8px;"></pre>
 </section>
 {% endblock %}
+
 {% block scripts %}
 <script>
 async function gather(){
-  const rt = JSON.parse(localStorage.getItem('neuro_rt_trials')||'[]')
-  const stroop = JSON.parse(localStorage.getItem('neuro_stroop')||'{"correct":0,"total":0, "avg_rt":0}')
-  const mem = JSON.parse(localStorage.getItem('neuro_memory')||'{"correct":0,"total":0}')
-  const spiral = JSON.parse(localStorage.getItem('neuro_spiral')||'[]')
+  // Gather Original 4 Test Data
+  const rt = JSON.parse(localStorage.getItem('neuro_rt_trials') || '[]');
+  const stroop = JSON.parse(localStorage.getItem('neuro_stroop') || '{"correct":0,"total":0, "avg_rt":0}');
+  const mem = JSON.parse(localStorage.getItem('neuro_memory') || '{"correct":0,"total":0}');
+  const spiral = JSON.parse(localStorage.getItem('neuro_spiral') || '[]');
+
+  // Gather New 6 Test Data (Assuming keys used in your main.js / templates)
+  // These keys should match what NeuroTrack.saveAndNext() provides
+  const tappingCount = parseInt(localStorage.getItem('neuro_tapping_count') || '0');
+  const trailTime = parseFloat(localStorage.getItem('neuro_trail_time') || '60000');
+  const gonogoAcc = parseFloat(localStorage.getItem('neuro_gonogo_accuracy') || '0');
+  const digitSpan = parseInt(localStorage.getItem('neuro_digit_span_length') || '0');
+  const flankerRt = parseFloat(localStorage.getItem('neuro_flanker_avg_rt') || '1200');
+  const visualSearchRt = parseFloat(localStorage.getItem('neuro_visual_search_rt') || '4000');
 
   const payload = {
     user_name: getUserName(),
+    // Original fields
     reaction_times: rt,
     stroop_correct: stroop.correct,
     stroop_total: stroop.total,
     stroop_avg_rt: stroop.avg_rt,
     memory_correct: mem.correct,
     memory_total: mem.total,
-    spiral: { points: (spiral||[]).map(p=>({x:p.x,y:p.y,t:p.t})) },
-  }
-  document.getElementById('out').textContent = 'Sending to server...'
-  try{
-    const resp = await fetch('/analyze_all', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)})
-    const j = await resp.json()
-    document.getElementById('out').textContent = JSON.stringify(j, null, 2)
-    localStorage.setItem('neuro_last_analysis', JSON.stringify(j))
-  }catch(e){
-    document.getElementById('out').textContent = 'Error: '+e.message
+    spiral: { points: (spiral || []).map(p => ({x: p.x, y: p.y, t: p.t})) },
+    // New fields for the updated app.py
+    tapping_count: tappingCount,
+    trail_time: trailTime,
+    gonogo_accuracy: gonogoAcc,
+    digit_span_length: digitSpan,
+    flanker_avg_rt: flankerRt,
+    visual_search_rt: visualSearchRt
+  };
+
+  document.getElementById('out').textContent = 'Analyzing 10 test vectors...';
+  
+  try {
+    const resp = await fetch('/analyze_all', {
+      method: 'POST', 
+      headers: {'Content-Type': 'application/json'}, 
+      body: JSON.stringify(payload)
+    });
+    
+    const j = await resp.json();
+    
+    // Update UI
+    document.getElementById('out').textContent = JSON.stringify(j, null, 2);
+    document.getElementById('resultsSummary').style.display = 'block';
+    document.getElementById('riskValue').textContent = j.risk_index;
+    
+    // Save for PDF generation
+    localStorage.setItem('neuro_last_analysis', JSON.stringify(j));
+  } catch(e) {
+    document.getElementById('out').textContent = 'Error: ' + e.message;
   }
 }
-document.getElementById('btnGather').addEventListener('click', gather)
 
-document.getElementById('btnDownload').addEventListener('click', async ()=>{
-  const last = JSON.parse(localStorage.getItem('neuro_last_analysis')||'{}')
+document.getElementById('btnGather').addEventListener('click', gather);
+
+document.getElementById('btnDownload').addEventListener('click', async () => {
+  const last = JSON.parse(localStorage.getItem('neuro_last_analysis') || '{}');
   const name = getUserName();
-  if(!last || !last.risk_index){ alert('Run Gather & Send first'); return }
+  
+  if (!last || last.risk_index === undefined) { 
+    alert('Please click "Analyze My Results" first.'); 
+    return; 
+  }
 
   const resp = await fetch('/report', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-          name: name,
-          results: last
-      })
-  })
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      name: name,
+      results: last
+    })
+  });
 
   if (!resp.ok) {
-      document.getElementById('out').textContent = `Error generating PDF: ${resp.status} ${resp.statusText}`;
-      alert('Error generating PDF. See the detailed error in the output box.');
-      return;
+    alert('Error generating PDF report.');
+    return;
   }
 
   const blob = await resp.blob();
   const url = URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
+  const a = document.createElement('a');
+  a.href = url;
   const safeName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  a.download='neurotrack_Report_' + (safeName || 'Unknown') + '.pdf';
-  a.click()
-})
+  a.download = `NEUROTRACK_Report_${safeName || 'Participant'}.pdf`;
+  a.click();
+});
 </script>
 {% endblock %}

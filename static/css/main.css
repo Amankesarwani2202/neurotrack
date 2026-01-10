@@ -8,7 +8,8 @@ body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:var
 .card{background:var(--card);padding:18px;border-radius:12px;border:1px solid #eef2f7;box-shadow:0 6px 18px rgba(14,20,33,0.04)}
 .lead{color:var(--muted)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;padding:10px 14px;border-radius:10px;text-decoration:none;cursor:pointer;}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));color:white;border:none;padding:10px 14px;border-radius:10px;text-decoration:none;cursor:pointer; transition: transform 0.1s;}
+.btn:active{transform: scale(0.98);}
 .btn.ghost{background:#fff;border:1px solid #e6eef8;color:var(--accent2)}
 .small{font-size:13px;padding:6px 10px}
 .muted{color:var(--muted)}
@@ -19,4 +20,11 @@ body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:var
 .stroop-word{font-weight:800;font-size:28px}
 .big{font-size:20px;font-weight:700}
 .site-footer{text-align:center;padding:12px;color:var(--muted);font-size:13px;margin-top:18px}
+
+/* --- New Game Helpers --- */
+.tap-area{width:200px;height:200px;border-radius:50%;margin:20px auto;display:flex;align-items:center;justify-content:center;background:var(--accent2);color:white;font-size:24px;user-select:none;cursor:pointer;box-shadow:0 10px 20px rgba(37,99,235,0.2)}
+.flanker-display{font-size:48px;letter-spacing:15px;margin:40px 0;font-family:monospace}
+.trail-canvas{background:#fff;border:1px solid #eef2f7;border-radius:8px;cursor:crosshair;touch-action:none}
+.timer-pill{background:#fee2e2;color:#991b1b;padding:4px 12px;border-radius:20px;font-weight:bold;display:inline-block;margin-bottom:10px}
+
 @media(max-width:700px){ .row{flex-direction:column} .site-header nav{display:none} }

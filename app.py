@@ -28,6 +28,31 @@ def memory():
 def spiral():
     return render_template('spiral.html')
 
+# --- New Test Routes ---
+@app.route('/trail_making')
+def trail_making():
+    return render_template('trail_making.html')
+
+@app.route('/gonogo')
+def gonogo():
+    return render_template('gonogo.html')
+
+@app.route('/digit_span')
+def digit_span():
+    return render_template('digit_span.html')
+
+@app.route('/flanker')
+def flanker():
+    return render_template('flanker.html')
+
+@app.route('/tapping')
+def tapping():
+    return render_template('tapping.html')
+
+@app.route('/visual_search')
+def visual_search():
+    return render_template('visual_search.html')
+
 @app.route('/results')
 def results():
     return render_template('results.html')
@@ -74,20 +99,17 @@ def analyze_spiral(points):
 def analyze_all():
     data = request.json or {}
 
-    # Reaction: list of ms
+    # 1. Reaction: list of ms
     rts = data.get('reaction_times', [])
     mean_rt = float(np.mean(rts)) if len(rts)>0 else 1000.0
-    # map 150ms -> best(100), 1000ms -> worst(0)
     val = (mean_rt - 150)/(1000-150)
     val = np.clip(val,0,1)
     reaction_score = int((1-val)*100)
 
-    # Stroop: Use Avg RT from correct responses (lower is better)
+    # 2. Stroop: Use Avg RT from correct responses
     stroop_correct = int(data.get('stroop_correct',0))
     stroop_total = int(data.get('stroop_total',0)) or 1
     stroop_avg_rt = float(data.get('stroop_avg_rt', 1000.0))
-
-    # Combine accuracy and RT for Stroop score.
     acc_score = (stroop_correct/stroop_total) * 100
     rt_val = (stroop_avg_rt - 100)/(1000-100)
     rt_val = np.clip(rt_val,0,1)
@@ -95,39 +117,67 @@ def analyze_all():
     stroop_score = int(acc_score * 0.3 + rt_score * 0.7)
     stroop_score = int(np.clip(stroop_score, 0, 100))
 
-    # Memory
+    # 3. Memory
     memory_correct = int(data.get('memory_correct',0))
     memory_total = int(data.get('memory_total',1)) or 1
     memory_score = int((memory_correct / memory_total) * 100)
 
-    # Spiral
+    # 4. Spiral
     spiral_points = data.get('spiral', {}).get('points', []) if isinstance(data.get('spiral', {}), dict) else data.get('spiral', [])
     spiral_res = analyze_spiral(spiral_points)
     spiral_score = spiral_res.get('spiral_score', 0)
 
-    # Combine with weights
-    weights = {'reaction':0.25,'stroop':0.30,'memory':0.20,'spiral':0.25}
-    subs = {'reaction':reaction_score, 'stroop':stroop_score, 'memory':memory_score, 'spiral':spiral_score}
-    combined = 0.0
-    for k,w in weights.items():
-        combined += subs.get(k,0) * w
-    risk_index = round(max(0, min(100, 100 - combined)),2)
+    # --- New Game Calculations ---
+    # 5. Trail Making (Time based, 60s max)
+    trail_time = float(data.get('trail_time', 60000))
+    trail_score = int(np.clip((60000 - trail_time) / 450, 0, 100))
+
+    # 6. Go/No-Go (Accuracy)
+    gonogo_score = int(float(data.get('gonogo_accuracy', 0)) * 100)
+
+    # 7. Digit Span (Capacity)
+    digit_len = int(data.get('digit_span_length', 0))
+    digit_score = int(np.clip(digit_len * 12.5, 0, 100))
+
+    # 8. Flanker Task (Interference RT)
+    flanker_rt = float(data.get('flanker_avg_rt', 1200))
+    flanker_score = int(np.clip((1200 - flanker_rt) / 8, 0, 100))
+
+    # 9. Tapping Speed (Frequency)
+    taps = int(data.get('tapping_count', 0))
+    tapping_score = int(np.clip(taps * 1.5, 0, 100))
+
+    # 10. Visual Search (Attention RT)
+    vs_rt = float(data.get('visual_search_rt', 4000))
+    vs_score = int(np.clip((4000 - vs_rt) / 30, 0, 100))
+
+    # Combine with weights (adjusted for 10 games)
+    subs = {
+        'Reaction_Time_Score': reaction_score,
+        'Stroop_Score': stroop_score,
+        'Memory_Score': memory_score,
+        'Spiral_Score': spiral_score,
+        'Trail_Making_Score': trail_score,
+        'GoNoGo_Score': gonogo_score,
+        'Digit_Span_Score': digit_score,
+        'Flanker_Score': flanker_score,
+        'Tapping_Score': tapping_score,
+        'Visual_Search_Score': vs_score
+    }
+    
+    combined = sum(subs.values()) / len(subs)
+    risk_index = round(max(0, min(100, 100 - combined)), 2)
 
     out = {
         'user_name': data.get('user_name', 'Participant'),
-        'subscores': {
-            'Reaction_Time_Score': reaction_score,
-            'Stroop_Score': stroop_score,
-            'Memory_Score': memory_score,
-            'Spiral_Score': spiral_score
-        },
+        'subscores': subs,
         'raw_metrics': {
             'Reaction_Avg_ms': round(mean_rt, 2),
             'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total}",
-            'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2),
-            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}"
+            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}",
+            'Taps_Total': taps
         },
-        'spiral_details':spiral_res,
+        'spiral_details': spiral_res,
         'risk_index': risk_index
     }
     return jsonify(out)
@@ -140,11 +190,17 @@ def report():
     name = payload.get('name', 'Participant')
 
     descriptions = {
-        'Reaction_Time_Score': 'Average time to respond. Higher is better (fast response).',
-        'Stroop_Score': 'Cognitive flexibility and speed. Higher is better (accurate & fast).',
-        'Memory_Score': 'Short-term numerical recall. Higher is better (correct recall).',
-        'Spiral_Score': 'Motor smoothness and tremor. Higher is better (smoother drawing).',
-        'risk_index': 'Overall screening score (0=Lowest Risk, 100=Highest Risk). Lower is better.'
+        'Reaction_Time_Score': 'Average time to respond. Higher is better.',
+        'Stroop_Score': 'Cognitive flexibility and speed. Higher is better.',
+        'Memory_Score': 'Short-term numerical recall. Higher is better.',
+        'Spiral_Score': 'Motor smoothness and tremor. Higher is better.',
+        'Trail_Making_Score': 'Visual search and mental flexibility.',
+        'GoNoGo_Score': 'Impulse control and response inhibition.',
+        'Digit_Span_Score': 'Working memory capacity and focus.',
+        'Flanker_Score': 'Executive control and selective attention.',
+        'Tapping_Score': 'Fine motor speed and oscillation.',
+        'Visual_Search_Score': 'Selective attention and scanning speed.',
+        'risk_index': 'Overall screening score (0=Lowest Risk, 100=Highest Risk).'
     }
 
     tmp = io.BytesIO()

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container center">
+    <div class="card">
+        <h2>Visual Search</h2>
+        <p class="lead">Find the letter 'T' among 'L's.</p>
+        <div id="grid" style="display:grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin: 20px;"></div>
+    </div>
+</div>
+
+<script>
+let vsTrials = 0;
+let vsRt = 0;
+
+function generateGrid() {
+    if(vsTrials >= 5) {
+        NeuroTrack.finishAll(); // Final submission
+        return;
+    }
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    const targetIdx = Math.floor(Math.random() * 100);
+    
+    for(let i=0; i<100; i++) {
+        const span = document.createElement('span');
+        span.innerText = (i === targetIdx) ? 'T' : 'L';
+        span.style.cursor = 'pointer';
+        span.onclick = () => {
+            if(span.innerText === 'T') {
+                vsRt += (Date.now() - vsStart);
+                vsTrials++;
+                generateGrid();
+            }
+        };
+        grid.appendChild(span);
+    }
+    vsStart = Date.now();
+}
+let vsStart = Date.now();
+generateGrid();
+</script>
+{% endblock %}

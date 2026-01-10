@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="card center">
+        <h2>Trail Making Test</h2>
+        <p class="lead">Connect the numbers in order (1-2-3-4-5) as fast as possible.</p>
+        <canvas id="trail-canvas" width="600" height="400" class="trail-canvas"></canvas>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('trail-canvas');
+const ctx = canvas.getContext('2d');
+let startTime = Date.now();
+let currentTarget = 1;
+const points = [
+    {n: 1, x: 50, y: 50}, {n: 2, x: 500, y: 100}, 
+    {n: 3, x: 100, y: 300}, {n: 4, x: 450, y: 350}, {n: 5, x: 300, y: 200}
+];
+
+function draw() {
+    ctx.clearRect(0,0,600,400);
+    points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 20, 0, Math.PI*2);
+        ctx.strokeStyle = p.n < currentTarget ? 'var(--accent)' : '#ccc';
+        ctx.stroke();
+        ctx.fillText(p.n, p.x-5, p.y+5);
+    });
+}
+
+canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    
+    const p = points.find(pt => pt.n === currentTarget);
+    const dist = Math.hypot(p.x - mx, p.y - my);
+    
+    if(dist < 25) {
+        currentTarget++;
+        if(currentTarget > 5) {
+            const duration = Date.now() - startTime;
+            NeuroTrack.saveScore('trail_time', duration, '/gonogo');
+        }
+        draw();
+    }
+};
+draw();
+</script>
+{% endblock %}

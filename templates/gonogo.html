@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="card center">
+        <h2>Go / No-Go</h2>
+        <p class="lead">Click the target ONLY when it turns GREEN.</p>
+        <div id="gng-target" class="target" style="height: 200px; width: 200px; margin: 40px auto; border-radius: 50%;">READY</div>
+    </div>
+</div>
+
+<script>
+let rounds = 0;
+let correct = 0;
+const target = document.getElementById('gng-target');
+
+function runRound() {
+    if(rounds >= 10) {
+        NeuroTrack.saveScore('gonogo_accuracy', correct/10, '/digit_span');
+        return;
+    }
+    
+    const isGo = Math.random() > 0.4;
+    target.style.background = isGo ? '#22c55e' : '#ef4444';
+    target.innerText = isGo ? 'GO!' : 'STAY';
+    
+    let acted = false;
+    target.onclick = () => {
+        if(acted) return;
+        acted = true;
+        if(isGo) correct++;
+    };
+
+    setTimeout(() => {
+        if(!acted && !isGo) correct++;
+        rounds++;
+        target.style.background = '#eee';
+        target.innerText = '+';
+        setTimeout(runRound, 1000);
+    }, 1000);
+}
+setTimeout(runRound, 2000);
+</script>
+{% endblock %}

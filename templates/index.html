@@ -2,7 +2,7 @@
 {% block content %}
   <section class="card">
     <h1>Welcome to NEUROTRACK</h1>
-    <p class="lead">A compact suite of quick cognitive & motor micro-tests. For best results, play <strong>all tests</strong> once.</p>
+    <p class="lead">A comprehensive suite of 10 cognitive & motor micro-tests. For the most accurate risk analysis, please complete <strong>all tests</strong> in order.</p>
 
     <div class="row" style="margin-top:10px;">
         <button class="btn ghost small" onclick="clearSessionData()">Start New Session (Clear Data)</button>
@@ -18,25 +18,44 @@
         <p id="nameStatus" class="muted" style="margin-top:10px;">Current User: <span id="currentName">Participant</span></p>
     </div>
 
-    <h3 style="margin-top:20px;">2. Tests Overview</h3>
-    <ul>
-      <li><b>Reaction:</b> Measures how fast you respond.</li>
-      <li><b>Stroop:</b> Tests attention & cognitive flexibility, with reaction time.</li>
-      <li><b>Memory:</b> Short-term numeric memory recall.</li>
-      <li><b>Spiral:</b> Evaluate drawing smoothness and tremor.</li>
-    </ul>
+    <h3 style="margin-top:20px;">2. Expanded Test Battery</h3>
+    <div class="row" style="align-items: flex-start;">
+        <div style="flex: 1;">
+            <p><b>Original Suite:</b></p>
+            <ul>
+              <li><b>Reaction:</b> Speed of response to visual cues.</li>
+              <li><b>Stroop:</b> Cognitive flexibility and interference.</li>
+              <li><b>Memory:</b> Short-term numeric recall.</li>
+              <li><b>Spiral:</b> Motor smoothness and drawing tremor.</li>
+            </ul>
+        </div>
+        <div style="flex: 1;">
+            <p><b>New Advanced Tests:</b></p>
+            <ul>
+              <li><b>Tapping:</b> Fine motor speed and rhythm.</li>
+              <li><b>Trail Making:</b> Visual search and sequencing.</li>
+              <li><b>Go/No-Go:</b> Impulse control and inhibition.</li>
+              <li><b>Digit Span:</b> Working memory capacity.</li>
+              <li><b>Flanker:</b> Selective attention and focus.</li>
+              <li><b>Visual Search:</b> Scanning efficiency.</li>
+            </ul>
+        </div>
+    </div>
 
-    <div class="row" style="margin-top:20px">
-      <a class="btn" href="/reaction">Start Reaction Test</a>
+    <div class="row" style="margin-top:20px; justify-content: center;">
+      <a class="btn" href="/reaction" style="padding: 15px 30px; font-size: 1.1em;">🚀 Start Full Assessment</a>
     </div>
   </section>
 {% endblock %}
+
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', ()=>{
     const nameInput = document.getElementById('userNameInput');
     const saveBtn = document.getElementById('btnSaveName');
     const currentNameEl = document.getElementById('currentName');
+    
+    // Load existing name if available
     const savedName = getUserName();
     nameInput.value = (savedName !== 'Participant' ? savedName : '');
     currentNameEl.textContent = savedName;
@@ -46,9 +65,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
         if(name){
             saveUserName(name);
             currentNameEl.textContent = name;
-            document.getElementById('nameStatus').textContent = `Name saved! Current User: ${name}`;
+            // Provide feedback
+            const statusBox = document.getElementById('nameStatus');
+            statusBox.innerHTML = `✅ Name saved! Current User: <strong>${name}</strong>`;
+            statusBox.style.color = 'var(--accent2)';
         } else {
-            alert('Please enter a name.');
+            alert('Please enter a name to personalize your report.');
         }
     });
 });

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container center">
+    <div class="card">
+        <h2>Flanker Task</h2>
+        <p class="lead">Click the button matching the <b>CENTER</b> arrow.</p>
+        <div id="stimulus" class="flanker-text" style="font-size: 48px; margin: 40px;">&lt;&lt; &gt; &lt;&lt;</div>
+        <div class="row" style="justify-content:center;">
+            <button class="btn" onclick="check('&lt;')">LEFT</button>
+            <button class="btn" onclick="check('&gt;')">RIGHT</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let trials = 0;
+let totalRt = 0;
+const arrows = ["<<<<<", ">>>>>", "<<><<", ">><>>"];
+
+function nextTrial() {
+    if(trials >= 10) {
+        NeuroTrack.saveScore('flanker_avg_rt', totalRt/10, '/visual_search');
+        return;
+    }
+    const current = arrows[Math.floor(Math.random() * arrows.length)];
+    document.getElementById('stimulus').innerText = current;
+    startTime = Date.now();
+}
+
+function check(dir) {
+    const center = document.getElementById('stimulus').innerText[2];
+    const choice = dir === '&lt;' ? '<' : '>';
+    if(choice === center) {
+        totalRt += (Date.now() - startTime);
+        trials++;
+        nextTrial();
+    }
+}
+let startTime = Date.now();
+nextTrial();
+</script>
+{% endblock %}

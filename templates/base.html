@@ -15,6 +15,12 @@
       <a href="/stroop">Stroop</a>
       <a href="/memory">Memory</a>
       <a href="/spiral">Spiral</a>
+      <a href="/tapping">Tapping</a>
+      <a href="/trail_making">Trails</a>
+      <a href="/gonogo">Go/No-Go</a>
+      <a href="/digit_span">Digits</a>
+      <a href="/flanker">Flanker</a>
+      <a href="/visual_search">Search</a>
       <a href="/results">Results</a>
     </nav>
   </header>
@@ -24,39 +30,62 @@
   </main>
 
   <footer class="site-footer">
-    NEUROTRACK • Play ALL tests for best analysis accuracy — this is not medical advice.
+    NEUROTRACK • Complete all 10 tests for the most accurate cognitive profile — Not medical advice.
   </footer>
 
   <script>
-    function getUserName(){
+    /**
+     * User Session Management
+     */
+    function getUserName() {
       return localStorage.getItem('neuro_user_name') || 'Participant';
     }
-    function saveUserName(name){
+
+    function saveUserName(name) {
       localStorage.setItem('neuro_user_name', name);
     }
-    function addNextButton(parentElId, testName, nextUrl){
+
+    /**
+     * Navigation Helper
+     */
+    function addNextButton(parentElId, testName, nextUrl) {
       const el = document.getElementById(parentElId);
+      if (!el) return;
       const nextBtn = document.createElement('a');
       nextBtn.className = 'btn';
       nextBtn.href = nextUrl;
-      nextBtn.textContent = `Next Test: ${testName}`;
+      nextBtn.textContent = `Proceed to: ${testName}`;
       el.innerHTML = '';
       el.appendChild(nextBtn);
     }
-    function clearSessionData(){
-        if(confirm("Are you sure you want to clear all previous results and start a new session?")){
+
+    /**
+     * Session Reset - Updated for all 10 tests
+     */
+    function clearSessionData() {
+        if (confirm("Reset all test data and start a new session?")) {
+            // Clear identity
             localStorage.removeItem('neuro_user_name');
+            
+            // Clear original 4 tests
             localStorage.removeItem('neuro_rt_trials');
             localStorage.removeItem('neuro_stroop');
             localStorage.removeItem('neuro_memory');
             localStorage.removeItem('neuro_spiral');
+            
+            // Clear new 6 tests and consolidated results
+            localStorage.removeItem('neuro_results'); // Used by main.js NeuroTrack object
+            localStorage.removeItem('final_analysis');
             localStorage.removeItem('neuro_last_analysis');
-            alert("All session data cleared. Reloading page.");
-            window.location.reload();
+            
+            alert("Session cleared. Redirecting to home.");
+            window.location.href = "/";
         }
     }
   </script>
+  
   <script src="/static/js/main.js"></script>
+  
   {% block scripts %}{% endblock %}
 </body>
 </html>

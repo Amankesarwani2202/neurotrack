@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <div class="card center">
+        <h2>Tapping Speed Test</h2>
+        <p class="lead">Tap the button as fast as you can for 10 seconds.</p>
+        <div class="timer-pill" id="timer-display">Time Left: 10s</div>
+        
+        <div id="tap-area" class="tap-circle" style="margin: 40px auto; background: var(--accent2); width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: pointer; user-select: none;">
+            TAP!
+        </div>
+        
+        <h1 id="display-count">0</h1>
+        <button id="start-btn" class="btn">Start Test</button>
+    </div>
+</div>
+
+<script>
+let taps = 0;
+let timeLeft = 10;
+let active = false;
+
+const tapArea = document.getElementById('tap-area');
+const startBtn = document.getElementById('start-btn');
+
+startBtn.onclick = () => {
+    active = true;
+    startBtn.style.display = 'none';
+    const timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer-display').innerText = `Time Left: ${timeLeft}s`;
+        if(timeLeft <= 0) {
+            clearInterval(timer);
+            active = false;
+            NeuroTrack.saveScore('tapping_count', taps, '/trail_making');
+        }
+    }, 1000);
+};
+
+tapArea.onpointerdown = (e) => {
+    if(!active) return;
+    taps++;
+    document.getElementById('display-count').innerText = taps;
+};
+</script>
+{% endblock %}
