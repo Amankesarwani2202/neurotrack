@@ -7,13 +7,13 @@
         
         <div class="timer-pill" id="timer-display">Time Left: 10s</div>
         
-        <div id="tap-area" class="tap-circle" style="margin: 40px auto; background: var(--accent2); width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: pointer; user-select: none; transition: opacity 0.3s;">
+        <div id="tap-area" class="tap-circle" style="margin: 40px auto; background: var(--accent2); width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: pointer; user-select: none; transition: transform 0.1s, opacity 0.3s;">
             TAP!
         </div>
         
         <h1 id="display-count">0</h1>
         
-        <div id="tappingResult" class="muted" style="margin-top:12px">Press start to begin.</div>
+        <div id="tappingResult" class="muted" style="margin-top:12px; min-height: 24px;"></div>
         
         <div class="row" style="margin-top:12px">
             <button id="start-btn" class="btn">Start Test</button>
@@ -37,18 +37,17 @@ const nextBtnContainer = document.getElementById('nextBtnContainer');
 const tappingResult = document.getElementById('tappingResult');
 
 function startTest() {
-    // Reset state
+    // Reset Data
     taps = 0;
     timeLeft = 10;
     active = true;
     
     // UI Reset
-    document.getElementById('display-count').innerText = taps;
-    document.getElementById('timer-display').innerText = `Time Left: 10s`;
-    tappingResult.textContent = "Tapping in progress...";
+    document.getElementById('display-count').innerText = "0";
+    document.getElementById('timer-display').innerText = "Time Left: 10s";
+    tappingResult.textContent = "Keep tapping!";
     tapArea.style.opacity = '1';
     
-    // Hide buttons during test
     startBtn.style.display = 'none';
     nextBtnContainer.style.display = 'none';
     nextBtnContainer.innerHTML = ''; 
@@ -68,38 +67,45 @@ function finishTest() {
     active = false;
     tapArea.style.opacity = '0.4';
     
-    // Show Summary
+    // 1. Show Result Summary
     tappingResult.innerHTML = `<strong>Test Complete!</strong> Total Taps: ${taps}`;
 
-    // 1. Save score (matching your Stroop logic)
-    localStorage.setItem('neuro_tapping', JSON.stringify({count: taps, timestamp: new Date().getTime()}));
-    
+    // 2. Save score
     if (typeof NeuroTrack !== 'undefined') {
         NeuroTrack.saveScore('tapping_count', taps);
     }
+    localStorage.setItem('neuro_tapping', JSON.stringify({count: taps, date: new Date().toISOString()}));
 
-    // 2. Show the Restart option
+    // 3. Show Restart Button
     startBtn.innerText = "Try Again";
     startBtn.style.display = 'inline-block';
 
-    // 3. Show "Continue to Go/No-Go"
+    // 4. Force Show the Proceed to Go/No-Go Button
     nextBtnContainer.style.display = 'flex';
     
-    if (typeof addNextButton === 'function') {
-        // Point to /gongo per your request
-        addNextButton('nextBtnContainer', 'Go / No-Go Task', '/gongo');
-    } else {
-        // Fallback button if helper is missing
-        nextBtnContainer.innerHTML = `<a href="/gongo" class="btn success">Proceed to Go/No-Go</a>`;
-    }
+    // We manually create the button here to ensure the URL is exactly '/gongo'
+    // This overrides potential issues with the addNextButton helper
+    nextBtnContainer.innerHTML = `
+        <a href="/gongo" class="btn" style="background-color: #28a745; color: white; text-decoration: none;">
+            Proceed to Go/No-Go Task
+        </a>
+    `;
+    
+    // If you prefer using your global helper, uncomment the line below:
+    // if (typeof addNextButton === 'function') addNextButton('nextBtnContainer', 'Go / No-Go', '/gongo');
 }
 
 startBtn.onclick = startTest;
 
+// Use pointerdown for faster response on mobile
 tapArea.onpointerdown = (e) => {
     if(!active) return;
     taps++;
     document.getElementById('display-count').innerText = taps;
+    
+    // Tiny visual feedback on tap
+    tapArea.style.transform = 'scale(0.95)';
+    setTimeout(() => { tapArea.style.transform = 'scale(1)'; }, 50);
 };
 </script>
 {% endblock %}
