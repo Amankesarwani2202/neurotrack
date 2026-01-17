@@ -4,15 +4,18 @@
     <div class="card center">
         <h2>Tapping Speed Test</h2>
         <p class="lead">Tap the button as fast as you can for 10 seconds.</p>
+        
         <div class="timer-pill" id="timer-display">Time Left: 10s</div>
         
-        <div id="tap-area" class="tap-circle" style="margin: 40px auto; background: var(--accent2); width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: pointer; user-select: none;">
+        <div id="tap-area" class="tap-circle" style="margin: 40px auto; background: var(--accent2); width: 150px; height: 150px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: pointer; user-select: none; transition: opacity 0.3s;">
             TAP!
         </div>
         
         <h1 id="display-count">0</h1>
         
-        <div class="row">
+        <div id="tappingResult" class="muted" style="margin-top:12px">Press start to begin.</div>
+        
+        <div class="row" style="margin-top:12px">
             <button id="start-btn" class="btn">Start Test</button>
         </div>
 
@@ -31,6 +34,7 @@ let timerId = null;
 const tapArea = document.getElementById('tap-area');
 const startBtn = document.getElementById('start-btn');
 const nextBtnContainer = document.getElementById('nextBtnContainer');
+const tappingResult = document.getElementById('tappingResult');
 
 function startTest() {
     // Reset state
@@ -38,10 +42,13 @@ function startTest() {
     timeLeft = 10;
     active = true;
     
-    // UI Feedback
+    // UI Reset
     document.getElementById('display-count').innerText = taps;
     document.getElementById('timer-display').innerText = `Time Left: 10s`;
+    tappingResult.textContent = "Tapping in progress...";
     tapArea.style.opacity = '1';
+    
+    // Hide buttons during test
     startBtn.style.display = 'none';
     nextBtnContainer.style.display = 'none';
     nextBtnContainer.innerHTML = ''; 
@@ -59,26 +66,31 @@ function startTest() {
 
 function finishTest() {
     active = false;
-    tapArea.style.opacity = '0.5';
+    tapArea.style.opacity = '0.4';
     
-    // 1. Save score (matching your Stroop reference style)
+    // Show Summary
+    tappingResult.innerHTML = `<strong>Test Complete!</strong> Total Taps: ${taps}`;
+
+    // 1. Save score (matching your Stroop logic)
+    localStorage.setItem('neuro_tapping', JSON.stringify({count: taps, timestamp: new Date().getTime()}));
+    
     if (typeof NeuroTrack !== 'undefined') {
         NeuroTrack.saveScore('tapping_count', taps);
     }
-    localStorage.setItem('neuro_tapping', JSON.stringify({count: taps}));
 
     // 2. Show the Restart option
     startBtn.innerText = "Try Again";
-    startBtn.style.display = 'block';
+    startBtn.style.display = 'inline-block';
 
-    // 3. Show and Generate the "Continue" button pointing to Go/No-Go
+    // 3. Show "Continue to Go/No-Go"
     nextBtnContainer.style.display = 'flex';
+    
     if (typeof addNextButton === 'function') {
-        // Pointing to /gongo as requested
+        // Point to /gongo per your request
         addNextButton('nextBtnContainer', 'Go / No-Go Task', '/gongo');
     } else {
-        // Manual fallback if addNextButton isn't in base.html
-        nextBtnContainer.innerHTML = `<a href="/gongo" class="btn success">Continue to Go/No-Go</a>`;
+        // Fallback button if helper is missing
+        nextBtnContainer.innerHTML = `<a href="/gongo" class="btn success">Proceed to Go/No-Go</a>`;
     }
 }
 
