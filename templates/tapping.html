@@ -11,7 +11,9 @@
         </div>
         
         <h1 id="display-count">0</h1>
+        
         <button id="start-btn" class="btn">Start Test</button>
+        <button id="next-btn" class="btn" style="display: none; background-color: var(--success-color, #28a745);">Continue to Next Task</button>
     </div>
 </div>
 
@@ -22,17 +24,25 @@ let active = false;
 
 const tapArea = document.getElementById('tap-area');
 const startBtn = document.getElementById('start-btn');
+const nextBtn = document.getElementById('next-btn');
 
 startBtn.onclick = () => {
     active = true;
     startBtn.style.display = 'none';
+    
     const timer = setInterval(() => {
         timeLeft--;
         document.getElementById('timer-display').innerText = `Time Left: ${timeLeft}s`;
+        
         if(timeLeft <= 0) {
             clearInterval(timer);
             active = false;
-            NeuroTrack.saveScore('tapping_count', taps, '/trail_making');
+            // Disable tap area visual feedback
+            tapArea.style.opacity = '0.5';
+            tapArea.style.cursor = 'default';
+            
+            // Show the "Next" button
+            nextBtn.style.display = 'inline-block';
         }
     }, 1000);
 };
@@ -41,6 +51,12 @@ tapArea.onpointerdown = (e) => {
     if(!active) return;
     taps++;
     document.getElementById('display-count').innerText = taps;
+};
+
+// Handle the "Continue" action
+nextBtn.onclick = () => {
+    // Save the score and redirect when the user clicks the button
+    NeuroTrack.saveScore('tapping_count', taps, '/trail_making');
 };
 </script>
 {% endblock %}
