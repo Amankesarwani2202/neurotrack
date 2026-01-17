@@ -12,51 +12,82 @@
         
         <h1 id="display-count">0</h1>
         
-        <button id="start-btn" class="btn">Start Test</button>
-        <button id="next-btn" class="btn" style="display: none; background-color: var(--success-color, #28a745);">Continue to Next Task</button>
+        <div class="row">
+            <button id="start-btn" class="btn">Start Test</button>
+        </div>
+
+        <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 let taps = 0;
 let timeLeft = 10;
 let active = false;
+let timerId = null;
 
 const tapArea = document.getElementById('tap-area');
 const startBtn = document.getElementById('start-btn');
-const nextBtn = document.getElementById('next-btn');
+const nextBtnContainer = document.getElementById('nextBtnContainer');
 
-startBtn.onclick = () => {
+function startTest() {
+    // Reset state
+    taps = 0;
+    timeLeft = 10;
     active = true;
-    startBtn.style.display = 'none';
     
-    const timer = setInterval(() => {
+    // UI Feedback
+    document.getElementById('display-count').innerText = taps;
+    document.getElementById('timer-display').innerText = `Time Left: 10s`;
+    tapArea.style.opacity = '1';
+    startBtn.style.display = 'none';
+    nextBtnContainer.style.display = 'none';
+    nextBtnContainer.innerHTML = ''; 
+
+    timerId = setInterval(() => {
         timeLeft--;
         document.getElementById('timer-display').innerText = `Time Left: ${timeLeft}s`;
         
         if(timeLeft <= 0) {
-            clearInterval(timer);
-            active = false;
-            // Disable tap area visual feedback
-            tapArea.style.opacity = '0.5';
-            tapArea.style.cursor = 'default';
-            
-            // Show the "Next" button
-            nextBtn.style.display = 'inline-block';
+            clearInterval(timerId);
+            finishTest();
         }
     }, 1000);
-};
+}
+
+function finishTest() {
+    active = false;
+    tapArea.style.opacity = '0.5';
+    
+    // 1. Save score (matching your Stroop reference style)
+    if (typeof NeuroTrack !== 'undefined') {
+        NeuroTrack.saveScore('tapping_count', taps);
+    }
+    localStorage.setItem('neuro_tapping', JSON.stringify({count: taps}));
+
+    // 2. Show the Restart option
+    startBtn.innerText = "Try Again";
+    startBtn.style.display = 'block';
+
+    // 3. Show and Generate the "Continue" button pointing to Go/No-Go
+    nextBtnContainer.style.display = 'flex';
+    if (typeof addNextButton === 'function') {
+        // Pointing to /gongo as requested
+        addNextButton('nextBtnContainer', 'Go / No-Go Task', '/gongo');
+    } else {
+        // Manual fallback if addNextButton isn't in base.html
+        nextBtnContainer.innerHTML = `<a href="/gongo" class="btn success">Continue to Go/No-Go</a>`;
+    }
+}
+
+startBtn.onclick = startTest;
 
 tapArea.onpointerdown = (e) => {
     if(!active) return;
     taps++;
     document.getElementById('display-count').innerText = taps;
-};
-
-// Handle the "Continue" action
-nextBtn.onclick = () => {
-    // Save the score and redirect when the user clicks the button
-    NeuroTrack.saveScore('tapping_count', taps, '/trail_making');
 };
 </script>
 {% endblock %}
