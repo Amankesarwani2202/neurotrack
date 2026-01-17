@@ -19,7 +19,7 @@
             <button id="start-btn" class="btn">Start Test</button>
         </div>
 
-        <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
+        <div id="nextBtnContainer" style="margin-top:20px; display:none; text-align:center;"></div>
     </div>
 </div>
 {% endblock %}
@@ -81,18 +81,14 @@ function finishTest() {
     startBtn.style.display = 'inline-block';
 
     // 4. Force Show the Proceed to Go/No-Go Button
-    nextBtnContainer.style.display = 'flex';
+    nextBtnContainer.style.display = 'block';
     
     // We manually create the button here to ensure the URL is exactly '/gongo'
-    // This overrides potential issues with the addNextButton helper
     nextBtnContainer.innerHTML = `
-        <a href="/gongo" class="btn" style="background-color: #28a745; color: white; text-decoration: none;">
+        <a href="/gongo" class="btn" style="background-color: #28a745; color: white; text-decoration: none; padding: 12px 24px; display: inline-block; margin-top: 10px;">
             Proceed to Go/No-Go Task
         </a>
     `;
-    
-    // If you prefer using your global helper, uncomment the line below:
-    // if (typeof addNextButton === 'function') addNextButton('nextBtnContainer', 'Go / No-Go', '/gongo');
 }
 
 startBtn.onclick = startTest;
