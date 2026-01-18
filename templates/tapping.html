@@ -19,7 +19,7 @@
             <button id="start-btn" class="btn">Start Test</button>
         </div>
 
-        <div id="nextBtnContainer" style="margin-top:20px; display:none; text-align:center;"></div>
+        <div id="nextBtnContainer" style="margin-top:20px; text-align:center;"></div>
     </div>
 </div>
 {% endblock %}
@@ -49,8 +49,7 @@ function startTest() {
     tapArea.style.opacity = '1';
     
     startBtn.style.display = 'none';
-    nextBtnContainer.style.display = 'none';
-    nextBtnContainer.innerHTML = ''; 
+    nextBtnContainer.innerHTML = ''; // Clear the next button
 
     timerId = setInterval(() => {
         timeLeft--;
@@ -80,13 +79,20 @@ function finishTest() {
     startBtn.innerText = "Try Again";
     startBtn.style.display = 'inline-block';
 
-    // 4. Force Show the Proceed to Go/No-Go Button
-    nextBtnContainer.style.display = 'block';
-    
-    // We manually create the button here to ensure the URL is exactly '/gongo'
+    // 4. Show the Proceed Button
     nextBtnContainer.innerHTML = `
-        <a href="/gongo" class="btn" style="background-color: #28a745; color: white; text-decoration: none; padding: 12px 24px; display: inline-block; margin-top: 10px;">
-            Proceed to Go/No-Go Task
+        <a href="/gongo" class="btn" style="
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            display: inline-block;
+            margin-top: 15px;
+            border-radius: 5px;
+            font-weight: 600;
+            font-size: 16px;
+        ">
+            Proceed to Go/No-Go Task →
         </a>
     `;
 }
