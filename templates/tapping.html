@@ -81,20 +81,19 @@ function finishTest() {
 
     // 4. Show the Proceed Button
     nextBtnContainer.innerHTML = `
-        <a href="/gongo" class="btn" style="
-            background: #28a745;
-            color: white;
-            text-decoration: none;
-            padding: 12px 30px;
-            display: inline-block;
-            margin-top: 15px;
-            border-radius: 5px;
-            font-weight: 600;
-            font-size: 16px;
+        <button id="gongo-btn" class="btn" style="
+            background: #28a745 !important;
+            background-image: none !important;
+            margin-top: 20px;
         ">
             Proceed to Go/No-Go Task →
-        </a>
+        </button>
     `;
+    
+    // Add click handler
+    document.getElementById('gongo-btn').onclick = function() {
+        window.location.href = '/gongo';
+    };
 }
 
 startBtn.onclick = startTest;
