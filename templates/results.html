@@ -16,6 +16,10 @@ async function gather(){
   const rt = JSON.parse(localStorage.getItem('neuro_rt_trials')||'[]')
   const stroop = JSON.parse(localStorage.getItem('neuro_stroop')||'{"correct":0,"total":0, "avg_rt":0}')
   const mem = JSON.parse(localStorage.getItem('neuro_memory')||'{"correct":0,"total":0}')
+  const faces = JSON.parse(localStorage.getItem('neuro_faces')||'[]')
+  const clock = JSON.parse(localStorage.getItem('neuro_clock')||'{}')
+  const cookie = JSON.parse(localStorage.getItem('neuro_cookie')||'{}')
+  const letter = JSON.parse(localStorage.getItem('neuro_letter')||'{}')
   const spiral = JSON.parse(localStorage.getItem('neuro_spiral')||'[]')
 
   const payload = {
@@ -26,6 +30,10 @@ async function gather(){
     stroop_avg_rt: stroop.avg_rt,
     memory_correct: mem.correct,
     memory_total: mem.total,
+    faces: faces,
+    clock: clock,
+    cookie: cookie,
+    letter: letter,
     spiral: { points: (spiral||[]).map(p=>({x:p.x,y:p.y,t:p.t})) },
   }
   document.getElementById('out').textContent = 'Sending to server...'

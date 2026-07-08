@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Cookie Theft Picture</h2>
+  <p class="muted">Ask: "Look at the picture. Which of these things are happening? Tick all that apply."</p>
+
+  <div class="center" style="margin-top:16px">
+    <img id="cookieImage" src="/static/images/cookie_theft.svg" alt="Cookie Theft" style="max-width:100%; border:1px solid #ddd; border-radius:12px; background:#fff" />
+  </div>
+
+  <div id="options" style="margin-top:16px;"></div>
+
+  <div class="row" style="margin-top:16px;">
+    <button class="btn" id="btnScoreCookie">Submit Answers</button>
+  </div>
+
+  <div id="cookieResult" class="muted" style="margin-top:12px">No score yet.</div>
+  <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+const cookieItems = [
+  {id:'boy', text:'A boy is taking cookies from the jar', correct:true, side:'left'},
+  {id:'stool', text:'The stool is tipping over / about to fall', correct:true, side:'right'},
+  {id:'girl', text:'A girl is reaching up for a cookie', correct:true, side:'left'},
+  {id:'woman', text:'The woman is washing dishes', correct:true, side:'right'},
+  {id:'sink', text:'The sink is overflowing', correct:true, side:'right'},
+  {id:'water', text:'Water is spilling onto the floor', correct:true, side:'right'},
+  {id:'dog', text:'A dog is under the table', correct:false, side:'left'},
+  {id:'phone', text:'Someone is talking on the phone', correct:false, side:'right'},
+  {id:'cat', text:'A cat is on the counter', correct:false, side:'left'},
+  {id:'fridge', text:'The woman is opening the fridge', correct:false, side:'right'}
+];
+
+function shuffle(a) { return a.sort(()=>Math.random()-0.5); }
+const randomized = shuffle([...cookieItems]);
+const optionsEl = document.getElementById('options');
+optionsEl.innerHTML = randomized.map(item => `
+  <label style="display:block; margin-bottom:8px;">
+    <input type="checkbox" data-id="${item.id}"> ${item.text}
+  </label>
+`).join('');
+
+function calculateCookieScore() {
+  const checks = Array.from(optionsEl.querySelectorAll('input[type=checkbox]'));
+  let correctCount = 0, wrongCount = 0;
+  const selectedSides = new Set();
+  let selectedCount = 0;
+  checks.forEach(box => {
+    if (!box.checked) return;
+    selectedCount++;
+    const item = cookieItems.find(i=>i.id===box.dataset.id);
+    if (!item) return;
+    if (item.correct) { correctCount++; selectedSides.add(item.side); }
+    else { wrongCount++; selectedSides.add(item.side); }
+  });
+  const neglectFlag = selectedCount > 0 && selectedSides.size === 1;
+  const raw = correctCount - wrongCount;
+  const normalized = Math.round(((raw + 4) / 10) * 100);
+  return {correctCount, wrongCount, raw, score: Math.max(0, Math.min(100, normalized)), neglectFlag};
+}
+
+document.getElementById('btnScoreCookie').addEventListener('click', () => {
+  const result = calculateCookieScore();
+  const payload = {
+    selected: randomized.filter((item, index) => optionsEl.querySelectorAll('input[type=checkbox]')[index].checked).map(item=>item.id),
+    score: result.score,
+    correct_count: result.correctCount,
+    distractor_count: result.wrongCount,
+    neglect_flag: result.neglectFlag,
+    saved_at: Date.now()
+  };
+  localStorage.setItem('neuro_cookie', JSON.stringify(payload));
+  document.getElementById('cookieResult').textContent = `Score: ${result.score} (correct ${result.correctCount}, distractors ${result.wrongCount})` + (result.neglectFlag ? ' — Possible neglect flag' : '');
+  document.getElementById('nextBtnContainer').style.display = 'flex';
+  addNextButton('nextBtnContainer', 'Letter Search', '/letter-search');
+});
+</script>
+{% endblock %}

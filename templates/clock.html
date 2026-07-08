@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h2>Draw a Clock</h2>
+  <p class="muted">Draw a full clock showing 10:15. No circle is provided; draw the whole clock including numbers and hands.</p>
+
+  <canvas id="clockCanvas" width="320" height="320" style="width:100%;height:320px;border:1px solid #ddd;border-radius:8px;background:#fff;touch-action:none"></canvas>
+
+  <div class="row" style="margin-top:12px;">
+    <button class="btn" id="btnClearClock">Clear</button>
+    <button class="btn ghost" id="btnSaveClock">Save Drawing</button>
+  </div>
+
+  <div style="margin-top:16px;">
+    <label><input type="checkbox" id="chk12correct"> 12 in the right place (3 points)</label><br>
+    <label><input type="checkbox" id="chkAllNumbers"> All 12 numbers present (1 point)</label><br>
+    <label><input type="checkbox" id="chkHasHands"> Has hands (1 point)</label><br>
+    <label><input type="checkbox" id="chkTenFifteen"> Shows 10:15 (1 point)</label>
+  </div>
+
+  <div class="row" style="margin-top:16px; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+    <button class="btn" id="btnSaveScore">Save Score</button>
+    <div id="clockResult" class="muted">No save yet.</div>
+  </div>
+
+  <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+const canvas = document.getElementById('clockCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let clockPoints = [];
+const nextBtnContainer = document.getElementById('nextBtnContainer');
+
+function drawGrid() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle = '#f3f4f6';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 16; i++) {
+    const x = i * 20;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    const y = i * 20;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+}
+
+drawGrid();
+
+function pointerEventToPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {x: e.clientX - rect.left, y: e.clientY - rect.top, t: Date.now()};
+}
+
+canvas.addEventListener('pointerdown', e => {
+  drawing = true;
+  const pos = pointerEventToPos(e);
+  clockPoints.push(pos);
+  ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  const pos = pointerEventToPos(e);
+  clockPoints.push(pos);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+});
+canvas.addEventListener('pointerup', () => { drawing = false; });
+canvas.addEventListener('pointerleave', () => { drawing = false; });
+
+document.getElementById('btnClearClock').addEventListener('click', () => {
+  clockPoints = [];
+  drawGrid();
+  document.getElementById('clockResult').textContent = 'Canvas cleared.';
+  nextBtnContainer.style.display = 'none';
+});
+
+document.getElementById('btnSaveClock').addEventListener('click', () => {
+  if (clockPoints.length < 5) { alert('Please draw the clock before saving.'); return; }
+  const data = {
+    points: clockPoints,
+    image: canvas.toDataURL('image/png'),
+    saved_at: Date.now()
+  };
+  localStorage.setItem('neuro_clock_drawing', JSON.stringify(data));
+  document.getElementById('clockResult').textContent = 'Drawing saved. Now score the clock below.';
+});
+
+document.getElementById('btnSaveScore').addEventListener('click', () => {
+  const twelve = document.getElementById('chk12correct').checked ? 3 : 0;
+  const allNumbers = document.getElementById('chkAllNumbers').checked ? 1 : 0;
+  const hasHands = document.getElementById('chkHasHands').checked ? 1 : 0;
+  const tenFifteen = document.getElementById('chkTenFifteen').checked ? 1 : 0;
+  const total = twelve + allNumbers + hasHands + tenFifteen;
+  const score = Math.round((total / 6) * 100);
+  const payload = {
+    score_points: total,
+    max_points: 6,
+    score: score,
+    values: {twelve, allNumbers, hasHands, tenFifteen},
+    notes: '',
+    saved_at: Date.now()
+  };
+  localStorage.setItem('neuro_clock', JSON.stringify(payload));
+  document.getElementById('clockResult').textContent = `Clock score saved: ${total}/6 (${score}). Under 4 suggests a real problem.`;
+  nextBtnContainer.style.display = 'flex';
+  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
+});
+</script>
+{% endblock %}

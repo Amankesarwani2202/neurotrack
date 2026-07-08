@@ -38,7 +38,7 @@ document.getElementById('btnCheck').addEventListener('click', ()=>{
   document.getElementById('memoryResult').textContent = ok? 'Correct!':('Incorrect — was '+currentSeq)
   localStorage.setItem('neuro_memory', JSON.stringify({correct: ok?1:0, total:1}))
   nextBtnContainer.style.display='flex';
-  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
+  addNextButton('nextBtnContainer', 'Famous Faces', '/famous-faces');
 })
 </script>
 {% endblock %}

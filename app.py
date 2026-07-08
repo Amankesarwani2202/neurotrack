@@ -24,6 +24,22 @@ def stroop():
 def memory():
     return render_template('memory.html')
 
+@app.route('/famous-faces')
+def famous_faces():
+    return render_template('famous_faces.html')
+
+@app.route('/clock')
+def clock():
+    return render_template('clock.html')
+
+@app.route('/cookie-theft')
+def cookie_theft():
+    return render_template('cookie_theft.html')
+
+@app.route('/letter-search')
+def letter_search():
+    return render_template('letter_search.html')
+
 @app.route('/spiral')
 def spiral():
     return render_template('spiral.html')
@@ -100,14 +116,51 @@ def analyze_all():
     memory_total = int(data.get('memory_total',1)) or 1
     memory_score = int((memory_correct / memory_total) * 100)
 
+    # Famous faces
+    faces_data = data.get('faces', []) if isinstance(data.get('faces', []), list) else []
+    face_points = sum(2 if item.get('response') == 'named' else 1 if item.get('response') == 'recognised' else 0 for item in faces_data)
+    face_total_points = max(1, len(faces_data) * 2)
+    face_score = int((face_points / face_total_points) * 100)
+
+    # Clock drawing
+    clock_data = data.get('clock', {}) if isinstance(data.get('clock', {}), dict) else {}
+    clock_points = int(clock_data.get('score_points', 0) or 0)
+    clock_score = int((clock_points / 6.0) * 100)
+
+    # Cookie theft
+    cookie_data = data.get('cookie', {}) if isinstance(data.get('cookie', {}), dict) else {}
+    cookie_score = int(cookie_data.get('score', 0) or 0)
+
+    # Letter search
+    letter_data = data.get('letter', {}) if isinstance(data.get('letter', {}), dict) else {}
+    letter_score = int(letter_data.get('score', 0) or 0)
+
     # Spiral
     spiral_points = data.get('spiral', {}).get('points', []) if isinstance(data.get('spiral', {}), dict) else data.get('spiral', [])
     spiral_res = analyze_spiral(spiral_points)
     spiral_score = spiral_res.get('spiral_score', 0)
 
     # Combine with weights
-    weights = {'reaction':0.25,'stroop':0.30,'memory':0.20,'spiral':0.25}
-    subs = {'reaction':reaction_score, 'stroop':stroop_score, 'memory':memory_score, 'spiral':spiral_score}
+    weights = {
+        'reaction':0.125,
+        'stroop':0.125,
+        'memory':0.125,
+        'faces':0.125,
+        'spiral':0.125,
+        'clock':0.125,
+        'cookie':0.125,
+        'letter':0.125
+    }
+    subs = {
+        'reaction':reaction_score,
+        'stroop':stroop_score,
+        'memory':memory_score,
+        'faces':face_score,
+        'spiral':spiral_score,
+        'clock':clock_score,
+        'cookie':cookie_score,
+        'letter':letter_score
+    }
     combined = 0.0
     for k,w in weights.items():
         combined += subs.get(k,0) * w
@@ -119,13 +172,21 @@ def analyze_all():
             'Reaction_Time_Score': reaction_score,
             'Stroop_Score': stroop_score,
             'Memory_Score': memory_score,
-            'Spiral_Score': spiral_score
+            'Famous_Faces_Score': face_score,
+            'Spiral_Score': spiral_score,
+            'Clock_Drawing_Score': clock_score,
+            'Cookie_Theft_Score': cookie_score,
+            'Letter_Search_Score': letter_score
         },
         'raw_metrics': {
             'Reaction_Avg_ms': round(mean_rt, 2),
             'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total}",
             'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2),
-            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}"
+            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}",
+            'Famous_Faces_Points': f"{face_points}/{face_total_points}",
+            'Clock_Drawing_Points': f"{clock_points}/6",
+            'Cookie_Theft_Score': cookie_score,
+            'Letter_Search_Score': letter_score
         },
         'spiral_details':spiral_res,
         'risk_index': risk_index
@@ -143,7 +204,11 @@ def report():
         'Reaction_Time_Score': 'Average time to respond. Higher is better (fast response).',
         'Stroop_Score': 'Cognitive flexibility and speed. Higher is better (accurate & fast).',
         'Memory_Score': 'Short-term numerical recall. Higher is better (correct recall).',
+        'Famous_Faces_Score': 'Recognition of familiar faces. Higher is better.',
+        'Clock_Drawing_Score': 'Planning and organisation of the clock drawing. Higher is better.',
         'Spiral_Score': 'Motor smoothness and tremor. Higher is better (smoother drawing).',
+        'Cookie_Theft_Score': 'Visual scene interpretation. Higher is better.',
+        'Letter_Search_Score': 'Visual search speed and accuracy. Higher is better.',
         'risk_index': 'Overall screening score (0=Lowest Risk, 100=Highest Risk). Lower is better.'
     }
 

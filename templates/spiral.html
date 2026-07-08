@@ -48,7 +48,7 @@ document.getElementById('btnSave').onclick = ()=>{
     document.getElementById('spiralInfo').textContent = 'Saved ('+savedSpiral.length+' points)';
     localStorage.setItem('neuro_spiral', JSON.stringify(savedSpiral));
     nextBtnContainer.style.display='flex';
-    addNextButton('nextBtnContainer', 'Results', '/results');
+    addNextButton('nextBtnContainer', 'Cookie Theft', '/cookie-theft');
 }
 </script>
 {% endblock %}

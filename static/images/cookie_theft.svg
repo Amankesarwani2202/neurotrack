@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" width="640" height="480">
+  <rect width="640" height="480" fill="#f8fafc"/>
+  <g fill="#cbd5e1" stroke="#64748b" stroke-width="4">
+    <rect x="100" y="300" width="120" height="80" rx="12" ry="12" fill="#fff"/>
+    <rect x="240" y="360" width="140" height="100" rx="20" ry="20" fill="#fff"/>
+  </g>
+  <g stroke="#334155" stroke-width="3" fill="none">
+    <path d="M110 290C140 270 180 270 210 290" />
+    <path d="M140 380C150 360 190 360 200 380" />
+  </g>
+  <circle cx="350" cy="200" r="90" fill="#fde68a" stroke="#f59e0b" stroke-width="4"/>
+  <path d="M285 220C305 210 325 215 345 205" stroke="#334155" stroke-width="8" fill="none"/>
+  <path d="M330 240C340 255 356 256 362 240" stroke="#334155" stroke-width="8" fill="none"/>
+  <path d="M250 360L380 360" stroke="#94a3b8" stroke-width="12"/>
+  <text x="270" y="385" font-size="24" fill="#334155">Cookie Theft</text>
+</svg>
