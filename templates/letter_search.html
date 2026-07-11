@@ -8,7 +8,6 @@
   <div class="row" style="margin-top:12px; align-items:center; gap:10px; flex-wrap:wrap;">
     <div><strong>Target:</strong> <span id="targetLetter">A</span></div>
     <button class="btn" id="btnStartLetter">Start</button>
-    <button class="btn ghost" id="btnFinishLetter">Finish</button>
   </div>
   <div id="letterTimer" class="muted" style="margin-top:8px">Time: 0.00s</div>
   <div id="letterGrid" style="margin-top:16px; display:grid; grid-template-columns: repeat(6, 1fr); gap:6px; touch-action:none; user-select:none;"></div>
@@ -24,6 +23,7 @@ const letterTimer = document.getElementById('letterTimer');
 const letterStatus = document.getElementById('letterStatus');
 const nextBtnContainer = document.getElementById('nextBtnContainer');
 const roundLabel = document.getElementById('roundLabel');
+const btnStartLetter = document.getElementById('btnStartLetter');
 const totalRounds = 3;
 let targetLetter = 'A';
 let letters = [];
@@ -32,7 +32,6 @@ let startTime = 0;
 let timerInterval = null;
 let foundCount = 0;
 let wrongCount = 0;
-let finished = false;
 let roundIndex = 0;
 let roundResults = [];
 
@@ -65,7 +64,6 @@ function buildGrid() {
   totalTargets = targetCount;
   foundCount = 0;
   wrongCount = 0;
-  finished = false;
   roundLabel.textContent = `${roundIndex + 1}`;
   gridEl.innerHTML = letters.map((cell, index) => `
     <button class="btn ghost" style="padding:18px 0; font-size:18px; min-height:50px;" data-index="${index}">${cell.letter}</button>
@@ -73,11 +71,10 @@ function buildGrid() {
   Array.from(gridEl.querySelectorAll('button')).forEach(button => {
     button.addEventListener('click', () => handleCellTap(parseInt(button.dataset.index), button));
   });
-  letterStatus.textContent = `Grid ready. Press Start and play the letter.`;
 }
 
 function handleCellTap(index, button) {
-  if (!startTime || finished) return;
+  if (!startTime) return;
   const cell = letters[index];
   if (cell.tapped) return;
   cell.tapped = true;
@@ -91,6 +88,10 @@ function handleCellTap(index, button) {
     wrongCount++;
   }
   letterStatus.textContent = `Found ${foundCount}/${totalTargets} correct, ${wrongCount} wrong.`;
+
+  if (foundCount >= totalTargets) {
+    completeRound();
+  }
 }
 
 function startTimer() {
@@ -124,37 +125,47 @@ function calculateLetterScore(timeMs, found, wrong) {
   return Math.max(0, Math.min(100, score));
 }
 
-function finishLetterSearch() {
-  if (!startTime) { alert('Please start the task first.'); return; }
-  finished = true;
+// Starts a round: builds a fresh grid, speaks the new target letter, and starts the timer.
+function startRound() {
+  buildGrid();
+  speakLetter();
+  startTimer();
+  letterStatus.textContent = `Round ${roundIndex + 1} started. Tap every target letter.`;
+}
+
+// Called automatically the instant all target letters in the current round have been found.
+function completeRound() {
   stopTimer();
   const elapsed = performance.now() - startTime;
-  const missed = Math.max(0, totalTargets - foundCount);
-  const score = calculateLetterScore(elapsed, foundCount, wrongCount);
   const leftTargets = letters.filter((cell, index) => cell.target && index % 2 === 0).length;
   const leftFound = letters.filter((cell, index) => (index % 2 === 0) && cell.target && cell.tapped).length;
   const rightTargets = totalTargets - leftTargets;
   const rightFound = foundCount - leftFound;
   const sideMisses = (leftTargets && leftFound === 0) || (rightTargets && rightFound === 0);
+  const score = calculateLetterScore(elapsed, foundCount, wrongCount);
   const payload = {
     target_letter: targetLetter,
     time_ms: Math.round(elapsed),
     correct_found: foundCount,
     wrong_tapped: wrongCount,
-    missed: missed,
+    missed: 0,
     total_targets: totalTargets,
     side_misses: sideMisses,
     score: score,
     saved_at: Date.now()
   };
   roundResults.push(payload);
+
   if (roundIndex < totalRounds - 1) {
     roundIndex++;
-    buildGrid();
-    letterStatus.textContent = `Round ${roundIndex + 1} ready. Press Start and play the letter.`;
-    nextBtnContainer.style.display = 'none';
-    return;
+    letterStatus.textContent = `Round ${roundIndex} complete! Starting next round...`;
+    setTimeout(startRound, 1000);
+  } else {
+    finishLetterSearch();
   }
+}
+
+function finishLetterSearch() {
   const aggregateScore = Math.round(roundResults.reduce((sum, item) => sum + item.score, 0) / roundResults.length);
   const aggregatePayload = {
     total_rounds: totalRounds,
@@ -170,15 +181,11 @@ function finishLetterSearch() {
   addNextButton('nextBtnContainer', 'Results', '/results');
 }
 
-document.getElementById('btnStartLetter').addEventListener('click', () => {
-  buildGrid();
-  speakLetter();
-  startTimer();
-  letterStatus.textContent = 'Task started. Tap every target letter.';
+btnStartLetter.addEventListener('click', () => {
+  btnStartLetter.style.display = 'none'; // Start is only used once, for round 1
+  startRound();
 });
 
-document.getElementById('btnFinishLetter').addEventListener('click', finishLetterSearch);
-
-buildGrid();
+buildGrid(); // show an initial grid preview before the user presses Start
 </script>
 {% endblock %}
