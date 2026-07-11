@@ -38,10 +38,26 @@
 {% block scripts %}
 <script>
 const faces = [
-  {id:'gandhi', label:'Mahatma Gandhi', src:'https://upload.wikimedia.org/wikipedia/commons/7/7a/Mahatma_Gandhi_1944.jpg', options:['Mahatma Gandhi','Indira Gandhi','Amitabh Bachchan','Albert Einstein']},
-  {id:'indira', label:'Indira Gandhi', src:'https://upload.wikimedia.org/wikipedia/commons/5/5a/Indira_Gandhi_1966.jpg', options:['Indira Gandhi','Mahatma Gandhi','Amitabh Bachchan','Albert Einstein']},
-  {id:'amitabh', label:'Amitabh Bachchan', src:'https://upload.wikimedia.org/wikipedia/commons/5/5b/Amitabh_Bachchan_2013.jpg', options:['Amitabh Bachchan','Mahatma Gandhi','Indira Gandhi','Albert Einstein']},
-  {id:'einstein', label:'Albert Einstein', src:'https://upload.wikimedia.org/wikipedia/commons/3/3e/Albert_Einstein_1921_by_F_Schmutzer_-_restoration.jpg', options:['Albert Einstein','Mahatma Gandhi','Indira Gandhi','Amitabh Bachchan']}
+  {
+    id: 'gandhi',
+    label: 'Mahatma Gandhi',
+    src: '/static/images/faces/gandhi.jpg'
+  },
+  {
+    id: 'indira',
+    label: 'Indira Gandhi',
+    src: '/static/images/faces/indira.jpg'
+  },
+  {
+    id: 'amitabh',
+    label: 'Amitabh Bachchan',
+    src: '/static/images/faces/amitabh.jpg'
+  },
+  {
+    id: 'einstein',
+    label: 'Albert Einstein',
+    src: '/static/images/faces/einstein.jpg'
+  }
 ];
 const totalRounds = 3;
 const roundSize = faces.length;
