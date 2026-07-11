@@ -4,7 +4,8 @@
   <h2>Short-Term Memory</h2>
   <p class="muted">Aim: Briefly view a short digit sequence and type it back from memory. Try to remember a 4-digit sequence.</p>
 
-  <div id="memoryPrompt" class="big"></div>
+  <div class="muted" style="margin-top:8px">Round <span id="roundLabel">1</span> of <span id="totalRoundsLabel"></span></div>
+  <div id="memoryPrompt" class="big" style="margin-top:8px"></div>
   <div class="row" style="margin-top:12px">
     <button class="btn" id="btnShow">Show Sequence</button>
     <input id="memoryAnswer" placeholder="Type the digits here" />
@@ -16,29 +17,65 @@
 {% endblock %}
 {% block scripts %}
 <script>
-let currentSeq=''
-const nextBtnContainer = document.getElementById('nextBtnContainer')
+const totalRounds = 3; // change this to however many rounds you want
+let currentRound = 1;
+let currentSeq = '';
+let results = [];
 
-document.getElementById('btnShow').addEventListener('click', ()=>{
-  currentSeq = ''+Math.floor(1000+Math.random()*9000)
-  document.getElementById('memoryPrompt').textContent = currentSeq
-  document.getElementById('memoryAnswer').value = ''
-  document.getElementById('memoryResult').textContent = 'Remembering...'
-  nextBtnContainer.style.display='none';
-  setTimeout(()=>document.getElementById('memoryPrompt').textContent = '...', 1200)
-})
+const nextBtnContainer = document.getElementById('nextBtnContainer');
+const roundLabel = document.getElementById('roundLabel');
+const totalRoundsLabel = document.getElementById('totalRoundsLabel');
+const memoryPrompt = document.getElementById('memoryPrompt');
+const memoryAnswer = document.getElementById('memoryAnswer');
+const memoryResult = document.getElementById('memoryResult');
+const btnShow = document.getElementById('btnShow');
+const btnCheck = document.getElementById('btnCheck');
 
-document.getElementById('btnCheck').addEventListener('click', ()=>{
-  const ans = document.getElementById('memoryAnswer').value.trim()
-  if(!currentSeq || document.getElementById('memoryPrompt').textContent !== '...'){
+totalRoundsLabel.textContent = totalRounds;
+
+function resetForRound() {
+  roundLabel.textContent = currentRound;
+  memoryPrompt.textContent = '';
+  memoryAnswer.value = '';
+  memoryResult.textContent = `Round ${currentRound} of ${totalRounds} — click "Show Sequence" when ready.`;
+  currentSeq = '';
+}
+
+btnShow.addEventListener('click', () => {
+  currentSeq = '' + Math.floor(1000 + Math.random() * 9000);
+  memoryPrompt.textContent = currentSeq;
+  memoryAnswer.value = '';
+  memoryResult.textContent = 'Remembering...';
+  nextBtnContainer.style.display = 'none';
+  setTimeout(() => { memoryPrompt.textContent = '...'; }, 1200);
+});
+
+btnCheck.addEventListener('click', () => {
+  const ans = memoryAnswer.value.trim();
+  if (!currentSeq || memoryPrompt.textContent !== '...') {
     alert('Show a sequence first, then wait for it to disappear.');
-    return
+    return;
   }
-  const ok = (ans===currentSeq)
-  document.getElementById('memoryResult').textContent = ok? 'Correct!':('Incorrect — was '+currentSeq)
-  localStorage.setItem('neuro_memory', JSON.stringify({correct: ok?1:0, total:1}))
-  nextBtnContainer.style.display='flex';
+  const ok = (ans === currentSeq);
+  results.push({ round: currentRound, correct: ok ? 1 : 0, sequence: currentSeq, answer: ans });
+
+  if (currentRound >= totalRounds) {
+    finishMemoryGame();
+  } else {
+    memoryResult.textContent = ok ? 'Correct! Moving to next round...' : `Incorrect — was ${currentSeq}. Moving to next round...`;
+    currentRound++;
+    setTimeout(resetForRound, 1200);
+  }
+});
+
+function finishMemoryGame() {
+  const correctCount = results.reduce((sum, r) => sum + r.correct, 0);
+  memoryResult.textContent = `Done! Score: ${correctCount}/${totalRounds} correct.`;
+  localStorage.setItem('neuro_memory', JSON.stringify({ correct: correctCount, total: totalRounds, rounds: results }));
+  nextBtnContainer.style.display = 'flex';
   addNextButton('nextBtnContainer', 'Famous Faces', '/famous-faces');
-})
+}
+
+resetForRound();
 </script>
 {% endblock %}
