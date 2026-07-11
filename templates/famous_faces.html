@@ -41,22 +41,26 @@ const faces = [
   {
     id: 'gandhi',
     label: 'Mahatma Gandhi',
-    src: '/static/images/faces/gandhi.jpg'
+    src: '/static/images/faces/gandhi.jpg',
+    options: ['Mahatma Gandhi', 'Jawaharlal Nehru', 'Indira Gandhi', 'Sardar Patel']
   },
   {
     id: 'indira',
     label: 'Indira Gandhi',
-    src: '/static/images/faces/indira.jpg'
+    src: '/static/images/faces/indira.jpg',
+    options: ['Indira Gandhi', 'Sonia Gandhi', 'Mahatma Gandhi', 'Pratibha Patil']
   },
   {
     id: 'amitabh',
     label: 'Amitabh Bachchan',
-    src: '/static/images/faces/amitabh.jpg'
+    src: '/static/images/faces/amitabh.jpg',
+    options: ['Amitabh Bachchan', 'Shah Rukh Khan', 'Dilip Kumar', 'Rajesh Khanna']
   },
   {
     id: 'einstein',
     label: 'Albert Einstein',
-    src: '/static/images/faces/einstein.jpg'
+    src: '/static/images/faces/einstein.jpg',
+    options: ['Albert Einstein', 'Isaac Newton', 'Niels Bohr', 'Max Planck']
   }
 ];
 const totalRounds = 3;
@@ -80,7 +84,7 @@ function renderFace() {
   facePrompt.textContent = `Round ${roundNumber} of ${totalRounds} • Face ${currentFaceIndex % roundSize + 1} of ${roundSize}`;
   document.querySelectorAll('input[name="faceResponse"]').forEach(i=>i.checked=false);
   hintBlock.style.display = 'none';
-  hintSelect.innerHTML = '<option value="">Select an answer</option>' + face.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+  hintSelect.innerHTML = '<option value="">Select an answer</option>' + (face.options || []).map(opt => `<option value="${opt}">${opt}</option>`).join('');
 }
 
 function selectedResponse() {
