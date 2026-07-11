@@ -4,6 +4,7 @@
   <h2>Letter Search</h2>
   <p class="muted">Play the sound of the target letter and then tap every matching letter in the grid as fast as you can. The grid must stay still while the patient taps.</p>
 
+  <div class="muted" style="margin-top:8px">Round <span id="roundLabel">1</span> of 3</div>
   <div class="row" style="margin-top:12px; align-items:center; gap:10px; flex-wrap:wrap;">
     <div><strong>Target:</strong> <span id="targetLetter">A</span></div>
     <button class="btn" id="btnStartLetter">Start</button>
@@ -22,6 +23,8 @@ const gridEl = document.getElementById('letterGrid');
 const letterTimer = document.getElementById('letterTimer');
 const letterStatus = document.getElementById('letterStatus');
 const nextBtnContainer = document.getElementById('nextBtnContainer');
+const roundLabel = document.getElementById('roundLabel');
+const totalRounds = 3;
 let targetLetter = 'A';
 let letters = [];
 let totalTargets = 0;
@@ -30,6 +33,8 @@ let timerInterval = null;
 let foundCount = 0;
 let wrongCount = 0;
 let finished = false;
+let roundIndex = 0;
+let roundResults = [];
 
 function randomLetter() {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -61,6 +66,7 @@ function buildGrid() {
   foundCount = 0;
   wrongCount = 0;
   finished = false;
+  roundLabel.textContent = `${roundIndex + 1}`;
   gridEl.innerHTML = letters.map((cell, index) => `
     <button class="btn ghost" style="padding:18px 0; font-size:18px; min-height:50px;" data-index="${index}">${cell.letter}</button>
   `).join('');
@@ -141,8 +147,25 @@ function finishLetterSearch() {
     score: score,
     saved_at: Date.now()
   };
-  localStorage.setItem('neuro_letter', JSON.stringify(payload));
-  letterStatus.textContent = `Finished. ${foundCount} found, ${missed} missed, ${wrongCount} wrong taps. Score ${score}.`;
+  roundResults.push(payload);
+  if (roundIndex < totalRounds - 1) {
+    roundIndex++;
+    buildGrid();
+    letterStatus.textContent = `Round ${roundIndex + 1} ready. Press Start and play the letter.`;
+    nextBtnContainer.style.display = 'none';
+    return;
+  }
+  const aggregateScore = Math.round(roundResults.reduce((sum, item) => sum + item.score, 0) / roundResults.length);
+  const aggregatePayload = {
+    total_rounds: totalRounds,
+    rounds: roundResults,
+    average_score: aggregateScore,
+    total_correct: roundResults.reduce((sum, item) => sum + item.correct_found, 0),
+    total_wrong: roundResults.reduce((sum, item) => sum + item.wrong_tapped, 0),
+    saved_at: Date.now()
+  };
+  localStorage.setItem('neuro_letter', JSON.stringify(aggregatePayload));
+  letterStatus.textContent = `Finished all ${totalRounds} rounds. Average score ${aggregateScore}.`;
   nextBtnContainer.style.display = 'flex';
   addNextButton('nextBtnContainer', 'Results', '/results');
 }

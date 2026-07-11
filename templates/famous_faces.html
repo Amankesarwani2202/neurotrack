@@ -4,8 +4,9 @@
   <h2>Famous Faces Recognition</h2>
   <p class="muted">Show one photo at a time. Select whether the patient recognised the face, named them, or neither. If they cannot recall, use the multiple-choice hint.</p>
 
+  <div class="muted" style="margin-top:8px">Round <span id="roundLabel">1</span> of 3</div>
   <div id="faceCard" class="center" style="margin-top:16px">
-    <img id="faceImage" src="/static/images/faces/face1.svg" alt="Famous face" style="max-width:320px; width:100%; border-radius:12px; border:1px solid #ddd; background:#fff" />
+    <img id="faceImage" src="https://upload.wikimedia.org/wikipedia/commons/7/7a/Mahatma_Gandhi_1944.jpg" alt="Famous face" style="max-width:320px; width:100%; border-radius:12px; border:1px solid #ddd; background:#fff" />
   </div>
   <div id="facePrompt" class="big" style="margin-top:12px">Who is this person?</div>
 
@@ -37,23 +38,30 @@
 {% block scripts %}
 <script>
 const faces = [
-  {id:'face1', label:'Gandhi', src:'/static/images/faces/face1.svg', options:['Gandhi','Indira Gandhi','Amitabh Bachchan','Ganesha']},
-  {id:'face2', label:'Indira Gandhi', src:'/static/images/faces/face2.svg', options:['Indira Gandhi','Gandhi','Amitabh Bachchan','Ganesha']},
-  {id:'face3', label:'Amitabh Bachchan', src:'/static/images/faces/face3.svg', options:['Amitabh Bachchan','Gandhi','Indira Gandhi','Ganesha']},
-  {id:'face4', label:'Ganesha', src:'/static/images/faces/face4.svg', options:['Ganesha','Gandhi','Indira Gandhi','Amitabh Bachchan']}
+  {id:'gandhi', label:'Mahatma Gandhi', src:'https://upload.wikimedia.org/wikipedia/commons/7/7a/Mahatma_Gandhi_1944.jpg', options:['Mahatma Gandhi','Indira Gandhi','Amitabh Bachchan','Albert Einstein']},
+  {id:'indira', label:'Indira Gandhi', src:'https://upload.wikimedia.org/wikipedia/commons/5/5a/Indira_Gandhi_1966.jpg', options:['Indira Gandhi','Mahatma Gandhi','Amitabh Bachchan','Albert Einstein']},
+  {id:'amitabh', label:'Amitabh Bachchan', src:'https://upload.wikimedia.org/wikipedia/commons/5/5b/Amitabh_Bachchan_2013.jpg', options:['Amitabh Bachchan','Mahatma Gandhi','Indira Gandhi','Albert Einstein']},
+  {id:'einstein', label:'Albert Einstein', src:'https://upload.wikimedia.org/wikipedia/commons/3/3e/Albert_Einstein_1921_by_F_Schmutzer_-_restoration.jpg', options:['Albert Einstein','Mahatma Gandhi','Indira Gandhi','Amitabh Bachchan']}
 ];
+const totalRounds = 3;
+const roundSize = faces.length;
+const faceSequence = Array.from({length: totalRounds}, () => faces.map(face => ({...face}))).flat();
 let currentFaceIndex = 0;
 let responses = JSON.parse(localStorage.getItem('neuro_faces') || '[]');
+let roundNumber = 1;
 const faceImage = document.getElementById('faceImage');
 const facePrompt = document.getElementById('facePrompt');
 const hintBlock = document.getElementById('hintBlock');
 const hintSelect = document.getElementById('hintSelect');
 const faceResult = document.getElementById('faceResult');
+const roundLabel = document.getElementById('roundLabel');
 
 function renderFace() {
-  const face = faces[currentFaceIndex];
+  const face = faceSequence[currentFaceIndex];
+  roundNumber = Math.floor(currentFaceIndex / roundSize) + 1;
+  roundLabel.textContent = `${roundNumber}`;
   faceImage.src = face.src;
-  facePrompt.textContent = `Face ${currentFaceIndex + 1} of ${faces.length}`;
+  facePrompt.textContent = `Round ${roundNumber} of ${totalRounds} • Face ${currentFaceIndex % roundSize + 1} of ${roundSize}`;
   document.querySelectorAll('input[name="faceResponse"]').forEach(i=>i.checked=false);
   hintBlock.style.display = 'none';
   hintSelect.innerHTML = '<option value="">Select an answer</option>' + face.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
@@ -83,9 +91,9 @@ function scoreFaceEntry(response) {
 
 function finishFaces() {
   const totalPoints = responses.reduce((sum, r) => sum + scoreFaceEntry(r.response), 0);
-  faceResult.textContent = `Saved ${responses.length}/${faces.length}. Total face memory score: ${totalPoints}/${faces.length*2}`;
+  faceResult.textContent = `Saved ${responses.length}/${faceSequence.length}. Total face memory score: ${totalPoints}/${faceSequence.length*2}`;
   document.getElementById('nextBtnContainer').style.display = 'flex';
-  addNextButton('nextBtnContainer', 'Draw Clock', '/clock');
+  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
 }
 
 renderFace();
@@ -101,11 +109,11 @@ document.getElementById('btnHintChoose').addEventListener('click', ()=>{
 document.getElementById('btnNextFace').addEventListener('click', ()=>{
   const response = selectedResponse();
   if (!response) { alert('Please select recognised, named, or neither.'); return; }
-  const face = faces[currentFaceIndex];
+  const face = faceSequence[currentFaceIndex];
   const hint = hintSelect.value;
   saveFaceResponse({image_id: face.id, response, hint_choice: hint || null, timestamp: Date.now()});
   currentFaceIndex++;
-  if (currentFaceIndex >= faces.length) {
+  if (currentFaceIndex >= faceSequence.length) {
     finishFaces();
   } else {
     renderFace();
@@ -114,10 +122,10 @@ document.getElementById('btnNextFace').addEventListener('click', ()=>{
 });
 
 document.getElementById('btnSkipFace').addEventListener('click', ()=>{
-  const face = faces[currentFaceIndex];
+  const face = faceSequence[currentFaceIndex];
   saveFaceResponse({image_id: face.id, response: 'skipped', hint_choice: null, timestamp: Date.now()});
   currentFaceIndex++;
-  if (currentFaceIndex >= faces.length) {
+  if (currentFaceIndex >= faceSequence.length) {
     finishFaces();
   } else {
     renderFace();

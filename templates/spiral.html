@@ -2,53 +2,79 @@
 {% block content %}
 <section class="card">
   <h2>Spiral Drawing</h2>
-  <p class="muted">Aim: Draw a smooth spiral — we analyze smoothness, jerkiness, and deviation from a fitted spiral.</p>
+  <p class="muted">Aim: Draw a smooth spiral <strong>to scale</strong> with the guide below. We analyze smoothness, jerkiness, and deviation from a fitted spiral.</p>
 
+  <div class="center" style="margin-top:12px">
+    <img src="/static/images/spiral_target.svg" alt="Spiral guide" style="max-width:100%; width:320px; border:1px solid #ddd; border-radius:12px; background:#fff" />
+  </div>
+
+  <div class="muted" style="margin-top:12px">Round <span id="roundLabel">1</span> of 3</div>
   <canvas id="canvas" width="320" height="320" style="width:100%;height:320px;border:1px solid #ddd;border-radius:8px"></canvas>
   <div class="row" style="margin-top:12px">
     <button class="btn" id="btnClear">Clear</button>
-    <button class="btn ghost" id="btnSave">Save</button>
+    <button class="btn ghost" id="btnSave">Save Round</button>
   </div>
-  <div id="spiralInfo" class="muted" style="margin-top:12px">No drawing saved.</div>
+  <div id="spiralInfo" class="muted" style="margin-top:12px">Draw your spiral for this round.</div>
   <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
 </section>
 {% endblock %}
 {% block scripts %}
 <script>
-const canvas = document.getElementById('canvas'); const ctx = canvas.getContext('2d')
-let drawing=false, points=[]
-const nextBtnContainer = document.getElementById('nextBtnContainer')
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const nextBtnContainer = document.getElementById('nextBtnContainer');
+const roundLabel = document.getElementById('roundLabel');
+const totalRounds = 3;
+let drawing = false;
+let points = [];
+let roundNumber = 1;
+let roundDrawings = [];
 
 canvas.addEventListener('pointerdown', e=>{
-    drawing=true; points=[]; nextBtnContainer.style.display='none';
+    drawing = true;
+    points = [];
+    nextBtnContainer.style.display = 'none';
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    drawPoint(e)
-})
-canvas.addEventListener('pointermove', e=>{ if(!drawing) return; drawPoint(e) })
-canvas.addEventListener('pointerup', ()=>{ drawing=false })
+    drawPoint(e);
+});
+canvas.addEventListener('pointermove', e=>{ if(!drawing) return; drawPoint(e); });
+canvas.addEventListener('pointerup', ()=>{ drawing = false; });
 
 function drawPoint(e){
-  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left; const y=e.clientY-r.top
-  points.push({x,y,t:Date.now()/1000})
-  ctx.fillStyle='#111'; ctx.fillRect(x-1,y-1,3,3)
+  const r = canvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+  points.push({x, y, t: Date.now() / 1000});
+  ctx.fillStyle = '#111';
+  ctx.fillRect(x - 1, y - 1, 3, 3);
 }
 
-document.getElementById('btnClear').onclick = ()=>{
-    ctx.clearRect(0,0,canvas.width,canvas.height); points=[];
-    document.getElementById('spiralInfo').textContent='Cleared.';
-    nextBtnContainer.style.display='none';
+function clearCanvas(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    points = [];
+    document.getElementById('spiralInfo').textContent = 'Cleared.';
+    nextBtnContainer.style.display = 'none';
 }
+
+document.getElementById('btnClear').onclick = clearCanvas;
 
 document.getElementById('btnSave').onclick = ()=>{
-    if(points.length<5){
-        alert('Draw more');
-        return
+    if(points.length < 5){
+        alert('Draw more of the spiral before saving.');
+        return;
     }
-    savedSpiral = points.slice();
-    document.getElementById('spiralInfo').textContent = 'Saved ('+savedSpiral.length+' points)';
-    localStorage.setItem('neuro_spiral', JSON.stringify(savedSpiral));
-    nextBtnContainer.style.display='flex';
-    addNextButton('nextBtnContainer', 'Cookie Theft', '/cookie-theft');
-}
+    roundDrawings.push({round: roundNumber, points: points.slice()});
+    localStorage.setItem('neuro_spiral', JSON.stringify(roundDrawings));
+    if(roundNumber >= totalRounds){
+        document.getElementById('spiralInfo').textContent = `Saved all ${totalRounds} rounds.`;
+        nextBtnContainer.style.display = 'flex';
+        addNextButton('nextBtnContainer', 'Cookie Theft', '/cookie-theft');
+        return;
+    }
+    roundNumber++;
+    roundLabel.textContent = roundNumber;
+    clearCanvas();
+    document.getElementById('spiralInfo').textContent = `Round ${roundNumber} ready. Draw again.`;
+};
 </script>
 {% endblock %}
