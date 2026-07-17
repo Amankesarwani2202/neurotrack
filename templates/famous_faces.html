@@ -2,7 +2,7 @@
 {% block content %}
 <section class="card">
   <h2>Famous Faces Recognition</h2>
-  <p class="muted">Show one photo at a time. Select whether the patient recognised the face, named them, or neither. If they cannot recall, use the multiple-choice hint.</p>
+  <p class="muted">Show one photo at a time. Ask the patient to name the person and type what they said below. The system will check whether it matches the correct name.</p>
 
   <div class="muted" style="margin-top:8px">Round <span id="roundLabel">1</span> of 3</div>
   <div id="faceCard" class="center" style="margin-top:16px">
@@ -10,28 +10,12 @@
   </div>
   <div id="facePrompt" class="big" style="margin-top:12px">Who is this person?</div>
 
-  <div class="row" style="margin-top:12px; flex-wrap:wrap;">
-    <label><input type="radio" name="faceResponse" value="recognised"> Recognised</label>
-    <label><input type="radio" name="faceResponse" value="named"> Named</label>
-    <label><input type="radio" name="faceResponse" value="neither"> Neither</label>
-  </div>
-
   <div id="namedInputBlock" style="margin-top:12px;">
     <div class="muted">Type the name the patient gave (any case — upper, lower, or mixed all match):</div>
     <div class="row" style="margin-top:8px; flex-wrap:wrap;">
       <input type="text" id="namedInput" placeholder="e.g. mahatma gandhi" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;" autocomplete="off" />
     </div>
     <div id="namedMatchResult" class="muted" style="margin-top:6px"></div>
-  </div>
-
-  <div id="hintBlock" style="margin-top:12px; display:none;">
-    <div class="muted">Offer a multiple-choice hint if needed:</div>
-    <div class="row" style="margin-top:8px; flex-wrap:wrap;">
-      <select id="hintSelect" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ccc;">
-        <option value="">Select an answer</option>
-      </select>
-      <button class="btn ghost small" id="btnHintChoose">Save Hint</button>
-    </div>
   </div>
 
   <div class="row" style="margin-top:16px;">
@@ -48,34 +32,22 @@
 // Each round has its own distinct set of 4 faces (12 unique people total)
 const rounds = [
   [
-    { id: 'gandhi', label: 'Mahatma Gandhi', src: '/static/images/faces/gandhi.jpg',
-      options: ['Mahatma Gandhi', 'Jawaharlal Nehru', 'Indira Gandhi', 'Sardar Patel'] },
-    { id: 'indira', label: 'Indira Gandhi', src: '/static/images/faces/indira.jpg',
-      options: ['Indira Gandhi', 'Sonia Gandhi', 'Mahatma Gandhi', 'Pratibha Patil'] },
-    { id: 'amitabh', label: 'Amitabh Bachchan', src: '/static/images/faces/amitabh.jpg',
-      options: ['Amitabh Bachchan', 'Shah Rukh Khan', 'Dilip Kumar', 'Rajesh Khanna'] },
-    { id: 'einstein', label: 'Albert Einstein', src: '/static/images/faces/einstein.jpg',
-      options: ['Albert Einstein', 'Isaac Newton', 'Niels Bohr', 'Max Planck'] }
+    { id: 'gandhi', label: 'Mahatma Gandhi', src: '/static/images/faces/gandhi.jpg' },
+    { id: 'indira', label: 'Indira Gandhi', src: '/static/images/faces/indira.jpg' },
+    { id: 'amitabh', label: 'Amitabh Bachchan', src: '/static/images/faces/amitabh.jpg' },
+    { id: 'einstein', label: 'Albert Einstein', src: '/static/images/faces/einstein.jpg' }
   ],
   [
-    { id: 'nehru', label: 'Jawaharlal Nehru', src: '/static/images/faces/nehru.jpg',
-      options: ['Jawaharlal Nehru', 'Mahatma Gandhi', 'Sardar Patel', 'Lal Bahadur Shastri'] },
-    { id: 'sachin', label: 'Sachin Tendulkar', src: '/static/images/faces/sachin.jpg',
-      options: ['Sachin Tendulkar', 'Virat Kohli', 'Kapil Dev', 'Sourav Ganguly'] },
-    { id: 'kalam', label: 'A.P.J. Abdul Kalam', src: '/static/images/faces/kalam.jpg',
-      options: ['A.P.J. Abdul Kalam', 'Manmohan Singh', 'Pranab Mukherjee', 'Homi Bhabha'] },
-    { id: 'mother_teresa', label: 'Mother Teresa', src: '/static/images/faces/mother_teresa.jpg',
-      options: ['Mother Teresa', 'Sister Nivedita', 'Kiran Bedi', 'Medha Patkar'] }
+    { id: 'nehru', label: 'Jawaharlal Nehru', src: '/static/images/faces/nehru.jpg' },
+    { id: 'sachin', label: 'Sachin Tendulkar', src: '/static/images/faces/sachin.jpg' },
+    { id: 'kalam', label: 'A.P.J. Abdul Kalam', src: '/static/images/faces/kalam.jpg' },
+    { id: 'mother_teresa', label: 'Mother Teresa', src: '/static/images/faces/mother_teresa.jpg' }
   ],
   [
-    { id: 'shahrukh', label: 'Shah Rukh Khan', src: '/static/images/faces/shahrukh.jpg',
-      options: ['Shah Rukh Khan', 'Amitabh Bachchan', 'Salman Khan', 'Aamir Khan'] },
-    { id: 'tagore', label: 'Rabindranath Tagore', src: '/static/images/faces/tagore.jpg',
-      options: ['Rabindranath Tagore', 'Bankim Chandra', 'Sarat Chandra', 'Munshi Premchand'] },
-    { id: 'lata', label: 'Lata Mangeshkar', src: '/static/images/faces/lata.jpg',
-      options: ['Lata Mangeshkar', 'Asha Bhosle', 'Kishore Kumar', 'Mohammed Rafi'] },
-    { id: 'bhagat_singh', label: 'Bhagat Singh', src: '/static/images/faces/bhagat_singh.jpg',
-      options: ['Bhagat Singh', 'Chandrashekhar Azad', 'Subhas Chandra Bose', 'Rajguru'] }
+    { id: 'shahrukh', label: 'Shah Rukh Khan', src: '/static/images/faces/shahrukh.jpg' },
+    { id: 'tagore', label: 'Rabindranath Tagore', src: '/static/images/faces/tagore.jpg' },
+    { id: 'lata', label: 'Lata Mangeshkar', src: '/static/images/faces/lata.jpg' },
+    { id: 'bhagat_singh', label: 'Bhagat Singh', src: '/static/images/faces/bhagat_singh.jpg' }
   ]
 ];
 
@@ -89,9 +61,6 @@ let roundNumber = 1;
 
 const faceImage = document.getElementById('faceImage');
 const facePrompt = document.getElementById('facePrompt');
-const hintBlock = document.getElementById('hintBlock');
-const hintSelect = document.getElementById('hintSelect');
-const namedInputBlock = document.getElementById('namedInputBlock');
 const namedInput = document.getElementById('namedInput');
 const namedMatchResult = document.getElementById('namedMatchResult');
 const faceResult = document.getElementById('faceResult');
@@ -111,21 +80,8 @@ function renderFace() {
   roundLabel.textContent = `${roundNumber}`;
   faceImage.src = face.src;
   facePrompt.textContent = `Round ${roundNumber} of ${totalRounds} • Face ${currentFaceIndex % roundSize + 1} of ${roundSize}`;
-  document.querySelectorAll('input[name="faceResponse"]').forEach(i => i.checked = false);
-  hintBlock.style.display = 'none';
   namedInput.value = '';
   namedMatchResult.textContent = '';
-  hintSelect.innerHTML = '<option value="">Select an answer</option>' + (face.options || []).map(opt => `<option value="${opt}">${opt}</option>`).join('');
-}
-
-function selectedResponse() {
-  const radio = document.querySelector('input[name="faceResponse"]:checked');
-  return radio ? radio.value : '';
-}
-
-function updateFieldVisibility() {
-  const value = selectedResponse();
-  hintBlock.style.display = value === 'neither' ? 'block' : 'none';
 }
 
 function saveFaceResponse(result) {
@@ -134,22 +90,18 @@ function saveFaceResponse(result) {
   localStorage.setItem('neuro_faces', JSON.stringify(responses));
 }
 
-function scoreFaceEntry(response) {
-  if (response === 'named') return 2;
-  if (response === 'recognised') return 1;
-  return 0;
+function scoreFaceEntry(nameCorrect) {
+  return nameCorrect ? 1 : 0;
 }
 
 function finishFaces() {
-  const totalPoints = responses.reduce((sum, r) => sum + scoreFaceEntry(r.response), 0);
-  faceResult.textContent = `Saved ${responses.length}/${faceSequence.length}. Total face memory score: ${totalPoints}/${faceSequence.length * 2}`;
+  const totalPoints = responses.reduce((sum, r) => sum + scoreFaceEntry(r.name_correct), 0);
+  faceResult.textContent = `Saved ${responses.length}/${faceSequence.length}. Total face memory score: ${totalPoints}/${faceSequence.length}`;
   document.getElementById('nextBtnContainer').style.display = 'flex';
   addNextButton('nextBtnContainer', 'Spiral', '/spiral');
 }
 
 renderFace();
-
-document.querySelectorAll('input[name="faceResponse"]').forEach(input => input.addEventListener('change', updateFieldVisibility));
 
 namedInput.addEventListener('input', () => {
   const face = faceSequence[currentFaceIndex];
@@ -158,30 +110,19 @@ namedInput.addEventListener('input', () => {
     return;
   }
   const isMatch = namesMatch(namedInput.value, face.label);
-  namedMatchResult.textContent = isMatch ? '✓ Matches correct name' : 'Typed name does not match (will still be recorded)';
-});
-
-document.getElementById('btnHintChoose').addEventListener('click', () => {
-  const hint = hintSelect.value;
-  if (!hint) { alert('Please choose an answer from the hint list.'); return; }
-  faceResult.textContent = `Hint selected: ${hint}`;
+  namedMatchResult.textContent = isMatch ? '✓ Correct name' : '✗ Incorrect name';
+  namedMatchResult.style.color = isMatch ? '#1a7f37' : '#c0392b';
 });
 
 document.getElementById('btnNextFace').addEventListener('click', () => {
-  const response = selectedResponse();
-  if (!response) { alert('Please select recognised, named, or neither.'); return; }
   const face = faceSequence[currentFaceIndex];
-  const hint = hintSelect.value;
   const typedNameRaw = namedInput.value.trim();
-  if (response === 'named' && !typedNameRaw) { alert('Please type the name given by the patient.'); return; }
-  const typedName = typedNameRaw || null;
-  const nameCorrect = typedName ? namesMatch(typedName, face.label) : null;
+  if (!typedNameRaw) { alert('Please type the name given by the patient.'); return; }
+  const nameCorrect = namesMatch(typedNameRaw, face.label);
   saveFaceResponse({
     image_id: face.id,
-    response,
-    typed_name: typedName,
+    typed_name: typedNameRaw,
     name_correct: nameCorrect,
-    hint_choice: hint || null,
     timestamp: Date.now()
   });
   currentFaceIndex++;
@@ -195,7 +136,7 @@ document.getElementById('btnNextFace').addEventListener('click', () => {
 
 document.getElementById('btnSkipFace').addEventListener('click', () => {
   const face = faceSequence[currentFaceIndex];
-  saveFaceResponse({ image_id: face.id, response: 'skipped', typed_name: null, name_correct: null, hint_choice: null, timestamp: Date.now() });
+  saveFaceResponse({ image_id: face.id, typed_name: null, name_correct: null, timestamp: Date.now() });
   currentFaceIndex++;
   if (currentFaceIndex >= faceSequence.length) {
     finishFaces();
