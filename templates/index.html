@@ -35,9 +35,10 @@
       <p class="muted">This name will be used on the final PDF report.</p>
         <div class="row">
             <input type="text" id="userNameInput" placeholder="Enter full name" style="flex-grow: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px;" />
-            <button class="btn" id="btnSaveName">Save Participant</button>
+            <button class="btn" id="btnSaveName" type="button">Save All Details</button>
         </div>
-        <p id="nameStatus" class="muted" style="margin-top:10px;">Current User: <span id="currentName">Participant</span></p>
+          <p id="nameStatus" class="muted" style="margin-top:10px;">Current User: <span id="currentName">Participant</span></p>
+          <p id="saveStatus" class="muted" role="status" aria-live="polite" style="margin-top:8px;"></p>
     </div>
 
     <h3 style="margin-top:20px;">3. Recommended Test Sequence</h3>
@@ -74,23 +75,35 @@ document.addEventListener('DOMContentLoaded', ()=>{
     saveBtn.addEventListener('click', async ()=>{
         const name = nameInput.value.trim();
       if(!medicalHistory.value || !ageInput.value || !genderInput.value || !name){
-        alert('Please answer all participant questions.');
+        document.getElementById('saveStatus').textContent = 'Please answer all participant questions before saving.';
         return;
         }
-      const response = await fetch('/participants', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name, medical_history: medicalHistory.value, age: ageInput.value, gender: genderInput.value})
-      });
-      if(!response.ok){ alert('Participant could not be saved.'); return; }
-      const participant = await response.json();
-      saveUserName(name);
-      localStorage.setItem('neuro_participant_id', participant.participant_id);
-      localStorage.setItem('neuro_medical_history', medicalHistory.value);
-      localStorage.setItem('neuro_age', ageInput.value);
-      localStorage.setItem('neuro_gender', genderInput.value);
-      currentNameEl.textContent = name;
-      document.getElementById('nameStatus').textContent = `Participant saved. Current User: ${name}`;
+      const saveStatus = document.getElementById('saveStatus');
+      saveBtn.disabled = true;
+      saveStatus.textContent = 'Saving all participant details...';
+      try {
+        const response = await fetch('/participants', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({name, medical_history: medicalHistory.value, age: ageInput.value, gender: genderInput.value})
+        });
+        const result = await response.json().catch(() => ({}));
+        if(!response.ok){
+          throw new Error(result.error || `Save failed (${response.status})`);
+        }
+        saveUserName(name);
+        localStorage.setItem('neuro_participant_id', result.participant_id);
+        localStorage.setItem('neuro_medical_history', medicalHistory.value);
+        localStorage.setItem('neuro_age', ageInput.value);
+        localStorage.setItem('neuro_gender', genderInput.value);
+        currentNameEl.textContent = name;
+        document.getElementById('nameStatus').textContent = `Participant saved. Current User: ${name}`;
+        saveStatus.textContent = 'All participant details saved successfully. You can start the tests.';
+      } catch (error) {
+        saveStatus.textContent = `Could not save participant details: ${error.message}`;
+      } finally {
+        saveBtn.disabled = false;
+      }
     });
 
     document.getElementById('startSequence').addEventListener('click', (event)=>{
