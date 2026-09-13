@@ -14,7 +14,6 @@
       <a href="/reaction">Reaction</a>
       <a href="/stroop">Stroop</a>
       <a href="/memory">Memory</a>
-      <a href="/famous-faces">Faces</a>
       <a href="/spiral">Spiral</a>
       <a href="/cookie-theft">Cookie Theft</a>
       <a href="/letter-search">Letter Search</a>
@@ -49,10 +48,13 @@
     function clearSessionData(){
         if(confirm("Are you sure you want to clear all previous results and start a new session?")){
             localStorage.removeItem('neuro_user_name');
+            localStorage.removeItem('neuro_participant_id');
+            localStorage.removeItem('neuro_medical_history');
+            localStorage.removeItem('neuro_age');
+            localStorage.removeItem('neuro_gender');
             localStorage.removeItem('neuro_rt_trials');
             localStorage.removeItem('neuro_stroop');
             localStorage.removeItem('neuro_memory');
-            localStorage.removeItem('neuro_faces');
             localStorage.removeItem('neuro_cookie');
             localStorage.removeItem('neuro_letter');
             localStorage.removeItem('neuro_spiral');

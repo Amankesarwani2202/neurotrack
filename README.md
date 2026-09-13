@@ -9,6 +9,7 @@ A web-based suite of quick cognitive and motor micro-tests for screening purpose
 - **Memory Test**: Short-term numerical recall
 - **Spiral Drawing Test**: Evaluates motor smoothness and tremor
 - **PDF Report Generation**: Comprehensive analysis with risk scoring
+- **Participant Data Collection**: Stores participant demographics, family-history response, and test scores in `participants.json`
 
 ## Deployment
 
@@ -40,6 +41,12 @@ python app.py
 - **Analysis**: NumPy
 - **PDF Generation**: ReportLab
 - **Hosting**: Vercel (Serverless)
+
+## Data Access
+
+Participant records are written to `participants.json` by default. Set `NEUROTRACK_DATA_FILE` to choose another JSON path. The records can be read through `GET /participants`; test results are attached after `POST /analyze_all`. A response of “I do not know” stores the participant's test scores as `null`.
+
+The Cookie Theft image is “Interior view of an Indian kitchen in West Bengal” by Billjones94, used under CC BY-SA 4.0 from Wikimedia Commons.
 
 ## Disclaimer
 

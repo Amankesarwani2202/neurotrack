@@ -73,7 +73,7 @@ function finishMemoryGame() {
   memoryResult.textContent = `Done! Score: ${correctCount}/${totalRounds} correct.`;
   localStorage.setItem('neuro_memory', JSON.stringify({ correct: correctCount, total: totalRounds, rounds: results }));
   nextBtnContainer.style.display = 'flex';
-  addNextButton('nextBtnContainer', 'Famous Faces', '/famous-faces');
+  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
 }
 
 resetForRound();

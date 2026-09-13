@@ -1,11 +1,34 @@
 from flask import Flask, request, jsonify, render_template, send_file
 import numpy as np
 import io
+import json
+import os
+import tempfile
+from datetime import datetime, timezone
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 app = Flask(__name__)
+DATA_FILE = os.environ.get('NEUROTRACK_DATA_FILE', os.path.join(os.path.dirname(__file__), 'participants.json'))
+
+
+def load_participants():
+    try:
+        with open(DATA_FILE, 'r', encoding='utf-8') as data_file:
+            return json.load(data_file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_participants(participants):
+    directory = os.path.dirname(DATA_FILE) or '.'
+    os.makedirs(directory, exist_ok=True)
+    with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=directory, delete=False) as temp_file:
+        json.dump(participants, temp_file, indent=2)
+        temp_file.write('\n')
+        temporary_path = temp_file.name
+    os.replace(temporary_path, DATA_FILE)
 
 # --- Test Pages ---
 @app.route('/')
@@ -23,10 +46,6 @@ def stroop():
 @app.route('/memory')
 def memory():
     return render_template('memory.html')
-
-@app.route('/famous-faces')
-def famous_faces():
-    return render_template('famous_faces.html')
 
 @app.route('/clock')
 def clock():
@@ -51,6 +70,39 @@ def results():
 @app.route('/health')
 def health():
     return jsonify({'status':'ok'})
+
+
+@app.route('/participants', methods=['POST'])
+def create_participant():
+    data = request.json or {}
+    required = ('name', 'medical_history', 'age', 'gender')
+    if any(not data.get(field) for field in required):
+        return jsonify({'error': 'name, medical_history, age, and gender are required'}), 400
+    try:
+        age = int(data['age'])
+    except (TypeError, ValueError):
+        return jsonify({'error': 'age must be a number'}), 400
+    if age < 1 or age > 120:
+        return jsonify({'error': 'age must be between 1 and 120'}), 400
+
+    participants = load_participants()
+    participant = {
+        'id': max((item.get('id', 0) for item in participants), default=0) + 1,
+        'name': str(data['name']).strip(),
+        'medical_history': data['medical_history'],
+        'age': age,
+        'gender': str(data['gender']).strip(),
+        'test_scores': None,
+        'created_at': datetime.now(timezone.utc).isoformat()
+    }
+    participants.append(participant)
+    save_participants(participants)
+    return jsonify({'participant_id': participant['id']}), 201
+
+
+@app.route('/participants', methods=['GET'])
+def list_participants():
+    return jsonify(load_participants())
 
 # Spiral analysis: expects points list [{x,y,t},...]
 def analyze_spiral(points):
@@ -116,12 +168,6 @@ def analyze_all():
     memory_total = int(data.get('memory_total',1)) or 1
     memory_score = int((memory_correct / memory_total) * 100)
 
-    # Famous faces
-    faces_data = data.get('faces', []) if isinstance(data.get('faces', []), list) else []
-    face_points = sum(2 if item.get('response') == 'named' else 1 if item.get('response') == 'recognised' else 0 for item in faces_data)
-    face_total_points = max(1, len(faces_data) * 2)
-    face_score = int((face_points / face_total_points) * 100)
-
     # Clock drawing
     clock_data = data.get('clock', {}) if isinstance(data.get('clock', {}), dict) else {}
     clock_points = int(clock_data.get('score_points', 0) or 0)
@@ -136,26 +182,41 @@ def analyze_all():
     letter_score = int(letter_data.get('score', 0) or 0)
 
     # Spiral
-    spiral_points = data.get('spiral', {}).get('points', []) if isinstance(data.get('spiral', {}), dict) else data.get('spiral', [])
+    spiral_data = data.get('spiral', {})
+    spiral_points = spiral_data.get('points', []) if isinstance(spiral_data, dict) else spiral_data
+    if spiral_points and isinstance(spiral_points[0], dict) and 'points' in spiral_points[0]:
+        spiral_points = [point for round_data in spiral_points for point in round_data.get('points', [])]
     spiral_res = analyze_spiral(spiral_points)
     spiral_score = spiral_res.get('spiral_score', 0)
+    history_proximity = {
+        'self': 3,
+        'close_relative': 2,
+        'distant_relative': 1,
+        'none': 0,
+        'unknown': None
+    }.get(data.get('medical_history'))
+    expected_score_factor = {
+        'self': 1.0,
+        'close_relative': 0.75,
+        'distant_relative': 0.5,
+        'none': 0.0,
+        'unknown': None
+    }.get(data.get('medical_history'))
 
     # Combine with weights
     weights = {
-        'reaction':0.125,
-        'stroop':0.125,
-        'memory':0.125,
-        'faces':0.125,
-        'spiral':0.125,
-        'clock':0.125,
-        'cookie':0.125,
-        'letter':0.125
+        'reaction':1 / 7,
+        'stroop':1 / 7,
+        'memory':1 / 7,
+        'spiral':1 / 7,
+        'clock':1 / 7,
+        'cookie':1 / 7,
+        'letter':1 / 7
     }
     subs = {
         'reaction':reaction_score,
         'stroop':stroop_score,
         'memory':memory_score,
-        'faces':face_score,
         'spiral':spiral_score,
         'clock':clock_score,
         'cookie':cookie_score,
@@ -168,11 +229,15 @@ def analyze_all():
 
     out = {
         'user_name': data.get('user_name', 'Participant'),
+        'medical_history': data.get('medical_history'),
+        'history_proximity_score': history_proximity,
+        'expected_score_factor': expected_score_factor,
+        'age': data.get('age'),
+        'gender': data.get('gender'),
         'subscores': {
             'Reaction_Time_Score': reaction_score,
             'Stroop_Score': stroop_score,
             'Memory_Score': memory_score,
-            'Famous_Faces_Score': face_score,
             'Spiral_Score': spiral_score,
             'Clock_Drawing_Score': clock_score,
             'Cookie_Theft_Score': cookie_score,
@@ -183,7 +248,6 @@ def analyze_all():
             'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total}",
             'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2),
             'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}",
-            'Famous_Faces_Points': f"{face_points}/{face_total_points}",
             'Clock_Drawing_Points': f"{clock_points}/6",
             'Cookie_Theft_Score': cookie_score,
             'Letter_Search_Score': letter_score
@@ -191,6 +255,14 @@ def analyze_all():
         'spiral_details':spiral_res,
         'risk_index': risk_index
     }
+    participant_id = data.get('participant_id')
+    if participant_id:
+        participants = load_participants()
+        for participant in participants:
+            if participant.get('id') == participant_id:
+                participant['test_scores'] = None if data.get('medical_history') == 'unknown' else out['subscores']
+                break
+        save_participants(participants)
     return jsonify(out)
 
 # Generate PDF report
@@ -204,7 +276,6 @@ def report():
         'Reaction_Time_Score': 'Average time to respond. Higher is better (fast response).',
         'Stroop_Score': 'Cognitive flexibility and speed. Higher is better (accurate & fast).',
         'Memory_Score': 'Short-term numerical recall. Higher is better (correct recall).',
-        'Famous_Faces_Score': 'Recognition of familiar faces. Higher is better.',
         'Clock_Drawing_Score': 'Planning and organisation of the clock drawing. Higher is better.',
         'Spiral_Score': 'Motor smoothness and tremor. Higher is better (smoother drawing).',
         'Cookie_Theft_Score': 'Visual scene interpretation. Higher is better.',

@@ -16,25 +16,27 @@ async function gather(){
   const rt = JSON.parse(localStorage.getItem('neuro_rt_trials')||'[]')
   const stroop = JSON.parse(localStorage.getItem('neuro_stroop')||'{"correct":0,"total":0, "avg_rt":0}')
   const mem = JSON.parse(localStorage.getItem('neuro_memory')||'{"correct":0,"total":0}')
-  const faces = JSON.parse(localStorage.getItem('neuro_faces')||'[]')
   const clock = JSON.parse(localStorage.getItem('neuro_clock')||'{}')
   const cookie = JSON.parse(localStorage.getItem('neuro_cookie')||'{}')
   const letter = JSON.parse(localStorage.getItem('neuro_letter')||'{}')
   const spiral = JSON.parse(localStorage.getItem('neuro_spiral')||'[]')
 
   const payload = {
+    participant_id: Number(localStorage.getItem('neuro_participant_id')) || null,
     user_name: getUserName(),
+    medical_history: localStorage.getItem('neuro_medical_history'),
+    age: Number(localStorage.getItem('neuro_age')) || null,
+    gender: localStorage.getItem('neuro_gender'),
     reaction_times: rt,
     stroop_correct: stroop.correct,
     stroop_total: stroop.total,
     stroop_avg_rt: stroop.avg_rt,
     memory_correct: mem.correct,
     memory_total: mem.total,
-    faces: faces,
     clock: clock,
     cookie: cookie,
     letter: letter,
-    spiral: { points: (spiral||[]).map(p=>({x:p.x,y:p.y,t:p.t})) },
+    spiral: { points: (spiral||[]).flatMap(round => round.points || []) },
   }
   document.getElementById('out').textContent = 'Sending to server...'
   try{
