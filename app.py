@@ -4,16 +4,73 @@ import io
 import json
 import os
 import tempfile
+import base64
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 app = Flask(__name__)
-DATA_FILE = os.environ.get('NEUROTRACK_DATA_FILE', os.path.join(os.path.dirname(__file__), 'participants.json'))
+DEFAULT_DATA_FILE = '/tmp/participants.json' if os.environ.get('VERCEL') else os.path.join(os.path.dirname(__file__), 'participants.json')
+DATA_FILE = os.environ.get('NEUROTRACK_DATA_FILE', DEFAULT_DATA_FILE)
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
+GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY')
+GITHUB_DATA_PATH = os.environ.get('GITHUB_DATA_PATH', 'participants.json')
+
+
+def github_storage_enabled():
+    return bool(GITHUB_TOKEN and GITHUB_REPOSITORY)
+
+
+def github_file_url():
+    path = urllib.parse.quote(GITHUB_DATA_PATH, safe='/')
+    return f'https://api.github.com/repos/{GITHUB_REPOSITORY}/contents/{path}'
+
+
+def github_request(method='GET', payload=None):
+    body = json.dumps(payload).encode('utf-8') if payload is not None else None
+    request = urllib.request.Request(
+        github_file_url(),
+        data=body,
+        headers={
+            'Accept': 'application/vnd.github+json',
+            'Authorization': f'Bearer {GITHUB_TOKEN}',
+            'X-GitHub-Api-Version': '2022-11-28'
+        },
+        method=method
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode('utf-8'))
+
+
+def load_github_participants():
+    try:
+        remote_file = github_request()
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return [], None
+        raise
+    content = base64.b64decode(remote_file['content']).decode('utf-8')
+    return json.loads(content), remote_file['sha']
+
+
+def save_github_participants(participants, sha=None):
+    payload = {
+        'message': 'Update participant data',
+        'content': base64.b64encode((json.dumps(participants, indent=2) + '\n').encode('utf-8')).decode('ascii')
+    }
+    if sha:
+        payload['sha'] = sha
+    github_request(method='PUT', payload=payload)
 
 
 def load_participants():
+    if github_storage_enabled():
+        participants, _ = load_github_participants()
+        return participants
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as data_file:
             return json.load(data_file)
@@ -22,6 +79,10 @@ def load_participants():
 
 
 def save_participants(participants):
+    if github_storage_enabled():
+        _, sha = load_github_participants()
+        save_github_participants(participants, sha)
+        return
     directory = os.path.dirname(DATA_FILE) or '.'
     os.makedirs(directory, exist_ok=True)
     with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=directory, delete=False) as temp_file:
@@ -85,7 +146,10 @@ def create_participant():
     if age < 1 or age > 120:
         return jsonify({'error': 'age must be between 1 and 120'}), 400
 
-    participants = load_participants()
+    try:
+        participants = load_participants()
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
     participant = {
         'id': max((item.get('id', 0) for item in participants), default=0) + 1,
         'name': str(data['name']).strip(),
@@ -96,7 +160,10 @@ def create_participant():
         'created_at': datetime.now(timezone.utc).isoformat()
     }
     participants.append(participant)
-    save_participants(participants)
+    try:
+        save_participants(participants)
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
     return jsonify({'participant_id': participant['id']}), 201
 
 
@@ -257,12 +324,15 @@ def analyze_all():
     }
     participant_id = data.get('participant_id')
     if participant_id:
-        participants = load_participants()
-        for participant in participants:
-            if participant.get('id') == participant_id:
-                participant['test_scores'] = None if data.get('medical_history') == 'unknown' else out['subscores']
-                break
-        save_participants(participants)
+        try:
+            participants = load_participants()
+            for participant in participants:
+                if participant.get('id') == participant_id:
+                    participant['test_scores'] = None if data.get('medical_history') == 'unknown' else out['subscores']
+                    break
+            save_participants(participants)
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+            return jsonify({'error': f'Participant score storage is unavailable: {error}'}), 503
     return jsonify(out)
 
 # Generate PDF report

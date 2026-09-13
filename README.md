@@ -46,6 +46,14 @@ python app.py
 
 Participant records are written to `participants.json` by default. Set `NEUROTRACK_DATA_FILE` to choose another JSON path. The records can be read through `GET /participants`; test results are attached after `POST /analyze_all`. A response of “I do not know” stores the participant's test scores as `null`.
 
+For persistent Vercel storage, configure these server-side environment variables:
+
+- `GITHUB_TOKEN`: fine-grained token with Contents read/write access to the repository
+- `GITHUB_REPOSITORY`: repository in `owner/name` form
+- `GITHUB_DATA_PATH`: optional JSON path, default `participants.json`
+
+When configured, the Flask server reads and commits the JSON file through GitHub's Contents API. Keep the token private and use a private repository for participant data. GitHub is file-backed storage rather than a database, so high-volume concurrent submissions may require a database instead.
+
 The Cookie Theft image is “Interior view of an Indian kitchen in West Bengal” by Billjones94, used under CC BY-SA 4.0 from Wikimedia Commons.
 
 ## Disclaimer
