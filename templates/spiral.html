@@ -9,16 +9,33 @@
   </div>
 
   <div class="muted" style="margin-top:12px">Round <span id="roundLabel">1</span> of 3</div>
-  <canvas id="canvas" width="320" height="320" style="width:100%;height:320px;border:1px solid #ddd;border-radius:8px"></canvas>
+  <canvas id="canvas" width="320" height="320" aria-label="Spiral drawing area"></canvas>
   <div class="row" style="margin-top:12px">
-    <button class="btn" id="btnClear">Clear</button>
-    <button class="btn ghost" id="btnSave">Save Round</button>
+    <button class="btn" id="btnClear" type="button">Clear</button>
+    <button class="btn ghost" id="btnSave" type="button">Save Round</button>
   </div>
   <div id="spiralInfo" class="muted" style="margin-top:12px">Draw your spiral for this round.</div>
   <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
 </section>
 {% endblock %}
 {% block scripts %}
+<style>
+  #canvas {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+</style>
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -29,54 +46,101 @@ let drawing = false;
 let points = [];
 let roundNumber = 1;
 let roundDrawings = [];
+let activePointerId = null;
+let lastPoint = null;
 
-canvas.addEventListener('pointerdown', e=>{
-    drawing = true;
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  drawing = true;
+  activePointerId = e.pointerId;
   canvas.setPointerCapture(e.pointerId);
-    points = [];
-    nextBtnContainer.style.display = 'none';
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    drawPoint(e);
+  points = [];
+  lastPoint = null;
+  nextBtnContainer.style.display = 'none';
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawPoint(e);
 });
-canvas.addEventListener('pointermove', e=>{ if(!drawing) return; drawPoint(e); });
-canvas.addEventListener('pointerup', e=>{ drawing = false; canvas.releasePointerCapture(e.pointerId); });
-canvas.addEventListener('pointercancel', ()=>{ drawing = false; });
 
-function drawPoint(e){
-  const r = canvas.getBoundingClientRect();
-  const x = (e.clientX - r.left) * canvas.width / r.width;
-  const y = (e.clientY - r.top) * canvas.height / r.height;
-  points.push({x, y, t: Date.now() / 1000});
-  ctx.fillStyle = '#111';
-  ctx.fillRect(x - 1, y - 1, 3, 3);
+canvas.addEventListener('pointermove', e => {
+  if (!drawing || e.pointerId !== activePointerId) return;
+  e.preventDefault();
+  drawPoint(e);
+});
+
+function stopDrawing(e) {
+  if (activePointerId !== null && e && e.pointerId !== activePointerId) return;
+  drawing = false;
+  if (activePointerId !== null && canvas.hasPointerCapture(activePointerId)) {
+    canvas.releasePointerCapture(activePointerId);
+  }
+  activePointerId = null;
+  lastPoint = null;
 }
 
-function clearCanvas(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    points = [];
-    document.getElementById('spiralInfo').textContent = 'Cleared.';
-    nextBtnContainer.style.display = 'none';
+canvas.addEventListener('pointerup', stopDrawing);
+canvas.addEventListener('pointercancel', stopDrawing);
+canvas.addEventListener('lostpointercapture', () => {
+  drawing = false;
+  activePointerId = null;
+  lastPoint = null;
+});
+
+function drawPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / r.width;
+  const scaleY = canvas.height / r.height;
+  const x = Math.max(0, Math.min(canvas.width, (e.clientX - r.left) * scaleX));
+  const y = Math.max(0, Math.min(canvas.height, (e.clientY - r.top) * scaleY));
+  const point = {x, y, t: Date.now() / 1000};
+  points.push(point);
+
+  ctx.fillStyle = '#111';
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (lastPoint) {
+    ctx.beginPath();
+    ctx.moveTo(lastPoint.x, lastPoint.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  lastPoint = point;
+}
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  points = [];
+  lastPoint = null;
+  drawing = false;
+  document.getElementById('spiralInfo').textContent = 'Cleared.';
+  nextBtnContainer.style.display = 'none';
 }
 
 document.getElementById('btnClear').onclick = clearCanvas;
 
-document.getElementById('btnSave').onclick = ()=>{
-    if(points.length < 5){
-        alert('Draw more of the spiral before saving.');
-        return;
-    }
-    roundDrawings.push({round: roundNumber, points: points.slice()});
-    localStorage.setItem('neuro_spiral', JSON.stringify(roundDrawings));
-    if(roundNumber >= totalRounds){
-        document.getElementById('spiralInfo').textContent = `Saved all ${totalRounds} rounds.`;
-        nextBtnContainer.style.display = 'flex';
-        addNextButton('nextBtnContainer', 'Cookie Theft', '/cookie-theft');
-        return;
-    }
-    roundNumber++;
-    roundLabel.textContent = roundNumber;
-    clearCanvas();
-    document.getElementById('spiralInfo').textContent = `Round ${roundNumber} ready. Draw again.`;
+document.getElementById('btnSave').onclick = () => {
+  if (points.length < 5) {
+    alert('Draw more of the spiral before saving.');
+    return;
+  }
+  roundDrawings.push({round: roundNumber, points: points.slice()});
+  localStorage.setItem('neuro_spiral', JSON.stringify(roundDrawings));
+  if (roundNumber >= totalRounds) {
+    document.getElementById('spiralInfo').textContent = `Saved all ${totalRounds} rounds.`;
+    nextBtnContainer.style.display = 'flex';
+    addNextButton('nextBtnContainer', 'Cookie Theft', '/cookie-theft');
+    return;
+  }
+  roundNumber++;
+  roundLabel.textContent = roundNumber;
+  clearCanvas();
+  document.getElementById('spiralInfo').textContent = `Round ${roundNumber} ready. Draw again.`;
 };
 </script>
 {% endblock %}
