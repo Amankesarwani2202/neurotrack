@@ -328,7 +328,13 @@ def analyze_all():
             participants = load_participants()
             for participant in participants:
                 if participant.get('id') == participant_id:
-                    participant['test_scores'] = None if data.get('medical_history') == 'unknown' else out['subscores']
+                    participant['test_scores'] = out['subscores']
+                    participant['raw_metrics'] = out['raw_metrics']
+                    participant['spiral_details'] = out['spiral_details']
+                    participant['risk_index'] = out['risk_index']
+                    participant['history_proximity_score'] = out['history_proximity_score']
+                    participant['expected_score_factor'] = out['expected_score_factor']
+                    participant['analyzed_at'] = datetime.now(timezone.utc).isoformat()
                     break
             save_participants(participants)
         except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
