@@ -3,14 +3,16 @@
 <section class="card">
   <h2>Short-Term Memory</h2>
   <p class="muted">Aim: Briefly view a short digit sequence and type it back from memory. Try to remember a 4-digit sequence.</p>
+  <p class="muted">After the sequence disappears, tap the answer field to start the response timer and type the digits.</p>
 
   <div class="muted" style="margin-top:8px">Round <span id="roundLabel">1</span> of <span id="totalRoundsLabel"></span></div>
   <div id="memoryPrompt" class="big" style="margin-top:8px"></div>
   <div class="row" style="margin-top:12px">
     <button class="btn" id="btnShow">Show Sequence</button>
-    <input id="memoryAnswer" placeholder="Type the digits here" />
-    <button class="btn ghost" id="btnCheck">Check</button>
+    <input id="memoryAnswer" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="Sequence answer" placeholder="Tap here to type the digits" disabled />
+    <button class="btn ghost" id="btnCheck" disabled>Check</button>
   </div>
+  <div id="memoryTimer" class="muted" role="timer" style="margin-top:12px">Response timer: waiting for the answer field.</div>
   <div id="memoryResult" class="muted" style="margin-top:12px">No attempts yet.</div>
   <div id="nextBtnContainer" class="row" style="margin-top:15px; display:none;"></div>
 </section>
@@ -21,6 +23,9 @@ const totalRounds = 3; // change this to however many rounds you want
 let currentRound = 1;
 let currentSeq = '';
 let results = [];
+let roundState = 'ready';
+let responseStartedAt = null;
+let responseTimerId = null;
 
 const nextBtnContainer = document.getElementById('nextBtnContainer');
 const roundLabel = document.getElementById('roundLabel');
@@ -28,36 +33,75 @@ const totalRoundsLabel = document.getElementById('totalRoundsLabel');
 const memoryPrompt = document.getElementById('memoryPrompt');
 const memoryAnswer = document.getElementById('memoryAnswer');
 const memoryResult = document.getElementById('memoryResult');
+const memoryTimer = document.getElementById('memoryTimer');
 const btnShow = document.getElementById('btnShow');
 const btnCheck = document.getElementById('btnCheck');
 
 totalRoundsLabel.textContent = totalRounds;
 
+function stopResponseTimer() {
+  clearInterval(responseTimerId);
+  responseTimerId = null;
+}
+
+function updateResponseTimer() {
+  if (responseStartedAt === null) return;
+  const seconds = (performance.now() - responseStartedAt) / 1000;
+  memoryTimer.textContent = `Response time: ${seconds.toFixed(1)} seconds`;
+}
+
 function resetForRound() {
+  stopResponseTimer();
+  responseStartedAt = null;
+  roundState = 'ready';
   roundLabel.textContent = currentRound;
   memoryPrompt.textContent = '';
   memoryAnswer.value = '';
+  memoryAnswer.disabled = true;
+  btnShow.disabled = false;
+  btnCheck.disabled = true;
+  memoryTimer.textContent = 'Response timer: waiting for the answer field.';
   memoryResult.textContent = `Round ${currentRound} of ${totalRounds} — click "Show Sequence" when ready.`;
   currentSeq = '';
 }
 
 btnShow.addEventListener('click', () => {
+  if (roundState !== 'ready') return;
+  roundState = 'showing';
+  btnShow.disabled = true;
   currentSeq = '' + Math.floor(1000 + Math.random() * 9000);
   memoryPrompt.textContent = currentSeq;
   memoryAnswer.value = '';
   memoryResult.textContent = 'Remembering...';
   nextBtnContainer.style.display = 'none';
-  setTimeout(() => { memoryPrompt.textContent = '...'; }, 1200);
+  setTimeout(() => {
+    memoryPrompt.textContent = '...';
+    roundState = 'answering';
+    memoryAnswer.disabled = false;
+    memoryResult.textContent = 'Tap the answer field to start the timer and enter the sequence.';
+  }, 1200);
+});
+
+memoryAnswer.addEventListener('focus', () => {
+  if (roundState !== 'answering' || responseStartedAt !== null) return;
+  responseStartedAt = performance.now();
+  btnCheck.disabled = false;
+  memoryResult.textContent = 'Enter the sequence, then tap "Check".';
+  updateResponseTimer();
+  responseTimerId = setInterval(updateResponseTimer, 100);
 });
 
 btnCheck.addEventListener('click', () => {
   const ans = memoryAnswer.value.trim();
-  if (!currentSeq || memoryPrompt.textContent !== '...') {
-    alert('Show a sequence first, then wait for it to disappear.');
-    return;
-  }
+  if (roundState !== 'answering' || responseStartedAt === null) return;
+  const responseTimeMs = Math.round(performance.now() - responseStartedAt);
+  updateResponseTimer();
+  stopResponseTimer();
+  roundState = 'feedback';
+  memoryAnswer.disabled = true;
+  btnCheck.disabled = true;
   const ok = (ans === currentSeq);
-  results.push({ round: currentRound, correct: ok ? 1 : 0, sequence: currentSeq, answer: ans });
+  results.push({ round: currentRound, correct: ok ? 1 : 0, sequence: currentSeq, answer: ans, response_time_ms: responseTimeMs });
 
   if (currentRound >= totalRounds) {
     finishMemoryGame();
@@ -69,6 +113,7 @@ btnCheck.addEventListener('click', () => {
 });
 
 function finishMemoryGame() {
+  roundState = 'complete';
   const correctCount = results.reduce((sum, r) => sum + r.correct, 0);
   memoryResult.textContent = `Done! Score: ${correctCount}/${totalRounds} correct.`;
   localStorage.setItem('neuro_memory', JSON.stringify({ correct: correctCount, total: totalRounds, rounds: results }));
