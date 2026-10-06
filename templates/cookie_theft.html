@@ -2,7 +2,7 @@
 {% block content %}
 <section class="card">
   <h2>Cookie Theft Picture</h2>
-  <p class="muted">Choose the one statement that correctly describes the picture.</p>
+  <p class="muted">Select all statements that correctly describe the picture. You can select more than one option.</p>
 
   <div class="center" style="margin-top:16px">
     <img id="cookieImage" src="/static/images/cookie_theft.jpg" alt="Cookie Theft scene" style="max-width:100%; border:1px solid #ddd; border-radius:12px; background:#fff" />
@@ -34,29 +34,28 @@ const randomized = shuffle([...cookieItems]);
 const optionsEl = document.getElementById('options');
 optionsEl.innerHTML = randomized.map(item => `
   <label style="display:block; margin-bottom:8px;">
-    <input type="radio" name="cookieAnswer" data-id="${item.id}"> ${item.text}
+    <input type="checkbox" name="cookieAnswer" data-id="${item.id}"> ${item.text}
   </label>
 `).join('');
 
 function calculateCookieScore() {
-  const checks = Array.from(optionsEl.querySelectorAll('input[type=radio]'));
+  const checks = Array.from(optionsEl.querySelectorAll('input[type=checkbox]'));
+  const totalCorrect = cookieItems.filter(item => item.correct).length;
   let correctCount = 0, wrongCount = 0;
-  let selectedCount = 0;
   checks.forEach(box => {
     if (!box.checked) return;
-    selectedCount++;
     const item = cookieItems.find(i=>i.id===box.dataset.id);
     if (!item) return;
     if (item.correct) { correctCount++; }
     else { wrongCount++; }
   });
-  return {correctCount, wrongCount, score: selectedCount === 1 && correctCount === 1 ? 100 : 0};
+  return {correctCount, wrongCount, score: correctCount === totalCorrect && wrongCount === 0 ? 100 : 0};
 }
 
 document.getElementById('btnScoreCookie').addEventListener('click', () => {
   const result = calculateCookieScore();
   const payload = {
-    selected: randomized.filter((item, index) => optionsEl.querySelectorAll('input[type=radio]')[index].checked).map(item=>item.id),
+    selected: Array.from(optionsEl.querySelectorAll('input[type=checkbox]:checked')).map(box => box.dataset.id),
     score: result.score,
     correct_count: result.correctCount,
     distractor_count: result.wrongCount,
