@@ -8,7 +8,7 @@
         <button class="btn ghost small" onclick="clearSessionData()">Start New Session (Clear Data)</button>
     </div>
 
-    <div style="margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:8px;">
+    <div id="participantDetails" style="margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:8px;">
       <h3>1. Participant information</h3>
       <p class="muted">Please answer these questions before starting the tests.</p>
       <label for="medicalHistory">Is there a history of a diagnosed medical condition relating to motor or cognitive dysfunction in your family?</label>
@@ -60,6 +60,17 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', ()=>{
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('participant_required') === '1') {
+      alert('Participant details required. Please enter and save your details on the Home page before accessing any game.');
+      const saveStatus = document.getElementById('saveStatus');
+      if (saveStatus) {
+        saveStatus.innerHTML = 'You must save your participant details before playing. <a href="/#participantDetails">Go to participant details</a>.';
+      }
+      const details = document.getElementById('participantDetails');
+      if (details) details.scrollIntoView({behavior: 'smooth', block: 'start'});
+      window.history.replaceState({}, document.title, '/');
+    }
     function getRegistrationKey(){
       let key = localStorage.getItem('neuro_registration_key');
       if(!key){
