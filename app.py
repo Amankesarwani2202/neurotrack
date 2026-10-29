@@ -70,7 +70,7 @@ def save_github_participants(participants, sha=None):
             candidate = list(merged.values())
         payload = {
             'message': 'Update participant data',
-            'content': base64.b64encode((json.dumps(candidate, indent=2) + '\\n').encode('utf-8')).decode('ascii')
+            'content': base64.b64encode((json.dumps(candidate, indent=2) + '\n').encode('utf-8')).decode('ascii')
         }
         if current_sha:
             payload['sha'] = current_sha
