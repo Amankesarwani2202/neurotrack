@@ -59,6 +59,14 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', ()=>{
+    function getRegistrationKey(){
+      let key = localStorage.getItem('neuro_registration_key');
+      if(!key){
+        key = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : 'reg-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem('neuro_registration_key', key);
+      }
+      return key;
+    }
     const nameInput = document.getElementById('userNameInput');
     const medicalHistory = document.getElementById('medicalHistory');
     const ageInput = document.getElementById('ageInput');
@@ -85,7 +93,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         const response = await fetch('/participants', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({name, medical_history: medicalHistory.value, age: ageInput.value, gender: genderInput.value})
+          body: JSON.stringify({name, medical_history: medicalHistory.value, age: ageInput.value, gender: genderInput.value, idempotency_key: getRegistrationKey()})
         });
         const result = await response.json().catch(() => ({}));
         if(!response.ok){

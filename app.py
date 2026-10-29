@@ -9,6 +9,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -58,14 +60,44 @@ def load_github_participants():
 
 
 def save_github_participants(participants, sha=None):
-    payload = {
-        'message': 'Update participant data',
-        'content': base64.b64encode((json.dumps(participants, indent=2) + '\n').encode('utf-8')).decode('ascii')
-    }
-    if sha:
-        payload['sha'] = sha
-    github_request(method='PUT', payload=payload)
-
+    # Retry optimistic-concurrency conflicts rather than losing concurrent writes.
+    candidate, current_sha = participants, sha
+    for attempt in range(4):
+        if attempt:
+            remote, current_sha = load_github_participants()
+            merged = {item.get('id'): item for item in remote if item.get('id') is not None}
+            for item in candidate:
+                item_id = item.get('id')
+                if item_id is None:
+                    continue
+                existing = merged.get(item_id)
+                if existing is None:
+                    merged[item_id] = item
+                    continue
+                existing_key = existing.get('idempotency_key')
+                candidate_key = item.get('idempotency_key')
+                if existing_key and candidate_key and existing_key != candidate_key:
+                    # Two simultaneous registrations allocated the same next ID.
+                    # Refuse to overwrite either record; caller can retry against fresh data.
+                    raise RuntimeError('Concurrent participant registration detected; please retry')
+                candidate_updated = item.get('analyzed_at') or ''
+                existing_updated = existing.get('analyzed_at') or ''
+                if candidate_updated and candidate_updated > existing_updated:
+                    merged[item_id] = item
+            candidate = list(merged.values())
+        payload = {
+            'message': 'Update participant data',
+            'content': base64.b64encode((json.dumps(candidate, indent=2) + '\n').encode('utf-8')).decode('ascii')
+        }
+        if current_sha:
+            payload['sha'] = current_sha
+        try:
+            github_request(method='PUT', payload=payload)
+            return
+        except urllib.error.HTTPError as error:
+            if error.code not in (409, 422) or attempt == 3:
+                raise
+    raise RuntimeError('Could not save participant data after concurrency retries')
 
 def load_participants():
     if github_storage_enabled():
@@ -148,11 +180,20 @@ def create_participant():
 
     try:
         participants = load_participants()
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, RuntimeError) as error:
         return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
+    idempotency_key = str(data.get('idempotency_key', '')).strip()
+    if idempotency_key:
+        existing = next((item for item in participants if item.get('idempotency_key') == idempotency_key), None)
+        if existing:
+            return jsonify({'participant_id': existing['id'], 'existing': True}), 200
+    name = str(data['name']).strip()
+    if not name:
+        return jsonify({'error': 'name must not be blank'}), 400
     participant = {
-        'id': max((item.get('id', 0) for item in participants), default=0) + 1,
-        'name': str(data['name']).strip(),
+        'id': max((item.get('id', 0) for item in participants if isinstance(item.get('id'), int)), default=0) + 1,
+        'idempotency_key': idempotency_key or None,
+        'name': name,
         'medical_history': data['medical_history'],
         'age': age,
         'gender': str(data['gender']).strip(),
@@ -211,42 +252,48 @@ def analyze_all():
 
     # Reaction: list of ms
     rts = data.get('reaction_times', [])
-    mean_rt = float(np.mean(rts)) if len(rts)>0 else 1000.0
+    rts = [float(value) for value in rts if isinstance(value, (int, float)) and np.isfinite(value) and value > 0]
+    mean_rt = float(np.mean(rts)) if rts else None
     # map 150ms -> best(100), 1000ms -> worst(0)
-    val = (mean_rt - 150)/(1000-150)
+    val = (mean_rt - 150)/(1000-150) if mean_rt is not None else 1
     val = np.clip(val,0,1)
-    reaction_score = int((1-val)*100)
+    reaction_score = int((1-val)*100) if mean_rt is not None else None
 
     # Stroop: Use Avg RT from correct responses (lower is better)
-    stroop_correct = int(data.get('stroop_correct',0))
-    stroop_total = int(data.get('stroop_total',0)) or 1
-    stroop_avg_rt = float(data.get('stroop_avg_rt', 1000.0))
+    stroop_correct = max(0, int(data.get('stroop_correct', 0) or 0))
+    stroop_total_raw = max(0, int(data.get('stroop_total', 0) or 0))
+    stroop_total = stroop_total_raw or 1
+    stroop_avg_rt_raw = data.get('stroop_avg_rt')
+    stroop_avg_rt = float(stroop_avg_rt_raw) if isinstance(stroop_avg_rt_raw, (int, float)) and np.isfinite(stroop_avg_rt_raw) and stroop_avg_rt_raw > 0 else None
 
     # Combine accuracy and RT for Stroop score.
     acc_score = (stroop_correct/stroop_total) * 100
-    rt_val = (stroop_avg_rt - 100)/(1000-100)
-    rt_val = np.clip(rt_val,0,1)
+    rt_val = (stroop_avg_rt - 100)/(1000-100) if stroop_avg_rt is not None else 1
+    rt_val = np.clip(rt_val, 0, 1)
     rt_score = (1-rt_val) * 100
-    stroop_score = int(acc_score * 0.3 + rt_score * 0.7)
-    stroop_score = int(np.clip(stroop_score, 0, 100))
+    stroop_score = int(np.clip(acc_score * 0.3 + rt_score * 0.7, 0, 100)) if stroop_total_raw > 0 else None
+    if stroop_total_raw > 0 and stroop_correct == 0:
+        stroop_score = 0
 
     # Memory
-    memory_correct = int(data.get('memory_correct',0))
-    memory_total = int(data.get('memory_total',1)) or 1
-    memory_score = int((memory_correct / memory_total) * 100)
+    memory_correct = max(0, int(data.get('memory_correct', 0) or 0))
+    memory_total_raw = max(0, int(data.get('memory_total', 0) or 0))
+    memory_total = memory_total_raw or 1
+    memory_score = int(np.clip(memory_correct / memory_total * 100, 0, 100)) if memory_total_raw > 0 else None
 
     # Clock drawing
     clock_data = data.get('clock', {}) if isinstance(data.get('clock', {}), dict) else {}
-    clock_points = int(clock_data.get('score_points', 0) or 0)
-    clock_score = int((clock_points / 6.0) * 100)
+    clock_points_raw = clock_data.get('score_points')
+    clock_points = max(0, min(6, int(clock_points_raw))) if clock_points_raw is not None else None
+    clock_score = int(clock_points / 6.0 * 100) if clock_points is not None else None
 
     # Cookie theft
     cookie_data = data.get('cookie', {}) if isinstance(data.get('cookie', {}), dict) else {}
-    cookie_score = int(cookie_data.get('score', 0) or 0)
+    cookie_score = int(np.clip(cookie_data['score'], 0, 100)) if isinstance(cookie_data.get('score'), (int, float)) else None
 
     # Letter search
     letter_data = data.get('letter', {}) if isinstance(data.get('letter', {}), dict) else {}
-    letter_score = int(letter_data.get('score', 0) or 0)
+    letter_score = int(np.clip(letter_data['score'], 0, 100)) if isinstance(letter_data.get('score'), (int, float)) else (int(np.clip(letter_data['average_score'], 0, 100)) if isinstance(letter_data.get('average_score'), (int, float)) else None)
 
     # Spiral
     spiral_data = data.get('spiral', {})
@@ -254,7 +301,7 @@ def analyze_all():
     if spiral_points and isinstance(spiral_points[0], dict) and 'points' in spiral_points[0]:
         spiral_points = [point for round_data in spiral_points for point in round_data.get('points', [])]
     spiral_res = analyze_spiral(spiral_points)
-    spiral_score = spiral_res.get('spiral_score', 0)
+    spiral_score = spiral_res.get('spiral_score') if len(spiral_points) >= 5 else None
     history_proximity = {
         'self': 3,
         'close_relative': 2,
@@ -289,10 +336,9 @@ def analyze_all():
         'cookie':cookie_score,
         'letter':letter_score
     }
-    combined = 0.0
-    for k,w in weights.items():
-        combined += subs.get(k,0) * w
-    risk_index = round(max(0, min(100, 100 - combined)),2)
+    available_scores = [score for score in subs.values() if isinstance(score, (int, float))]
+    combined = float(np.mean(available_scores)) if available_scores else None
+    risk_index = round(max(0, min(100, 100 - combined)), 2) if combined is not None else None
 
     out = {
         'user_name': data.get('user_name', 'Participant'),
@@ -311,10 +357,10 @@ def analyze_all():
             'Letter_Search_Score': letter_score
         },
         'raw_metrics': {
-            'Reaction_Avg_ms': round(mean_rt, 2),
-            'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total}",
-            'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2),
-            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}",
+            'Reaction_Avg_ms': round(mean_rt, 2) if mean_rt is not None else None,
+            'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total_raw}",
+            'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2) if stroop_avg_rt is not None else None,
+            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total_raw}",
             'Clock_Drawing_Points': f"{clock_points}/6",
             'Cookie_Theft_Score': cookie_score,
             'Letter_Search_Score': letter_score
@@ -329,6 +375,7 @@ def analyze_all():
             for participant in participants:
                 if participant.get('id') == participant_id:
                     participant['test_scores'] = out['subscores']
+                    participant['test_status'] = {key: ('completed' if value is not None else 'not_attempted') for key, value in out['subscores'].items()}
                     participant['raw_metrics'] = out['raw_metrics']
                     participant['spiral_details'] = out['spiral_details']
                     participant['risk_index'] = out['risk_index']
@@ -340,6 +387,42 @@ def analyze_all():
         except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
             return jsonify({'error': f'Participant score storage is unavailable: {error}'}), 503
     return jsonify(out)
+
+@app.route('/export.xlsx', methods=['GET'])
+def export_participants_xlsx():
+    try:
+        participants = load_participants()
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
+    workbook = Workbook()
+    summary = workbook.active
+    summary.title = 'Summary'
+    summary.append(['Metric', 'Value'])
+    summary.append(['Participants', len(participants)])
+    summary.append(['Analyzed participants', sum(bool(item.get('test_scores')) for item in participants)])
+    summary.append(['Exported at (UTC)', datetime.now(timezone.utc).isoformat()])
+    sheet = workbook.create_sheet('Participants')
+    columns = ['id', 'name', 'age', 'gender', 'medical_history', 'created_at', 'analyzed_at', 'test_status', 'test_scores', 'raw_metrics', 'spiral_details', 'risk_index']
+    sheet.append(columns)
+    for item in participants:
+        sheet.append([json.dumps(item.get(key), ensure_ascii=False) if isinstance(item.get(key), (dict, list)) else item.get(key) for key in columns])
+    audit = workbook.create_sheet('Data Quality')
+    audit.append(['Issue', 'Details'])
+    audit.append(['Missing vs zero', 'Blank score cells mean missing/not attempted; numeric zero means a recorded score.'])
+    audit.append(['Legacy records', 'Legacy rows may not have test_status; do not infer attempted status from zero alone.'])
+    audit.append(['Duplicate profiles', 'Potential duplicates are not automatically merged to avoid joining different people.'])
+    for ws in workbook.worksheets:
+        ws.freeze_panes = 'A2'
+        ws.auto_filter.ref = ws.dimensions
+        for col in ws.columns:
+            width = min(max(max(len(str(cell.value or '')) for cell in col) + 2, 12), 48)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = width
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name='neurotrack_participants.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 
 # Generate PDF report
 @app.route('/report', methods=['POST'])

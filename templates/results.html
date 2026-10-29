@@ -6,6 +6,7 @@
   <div class="row">
     <button class="btn" id="btnGather">Gather & Send</button>
     <button class="btn ghost" id="btnDownload">Download PDF</button>
+    <a class="btn ghost" href="/export.xlsx">Export Participants to Excel</a>
   </div>
   <pre id="out" class="muted" style="margin-top:12px;white-space:pre-wrap"></pre>
 </section>
@@ -53,7 +54,7 @@ document.getElementById('btnGather').addEventListener('click', gather)
 document.getElementById('btnDownload').addEventListener('click', async ()=>{
   const last = JSON.parse(localStorage.getItem('neuro_last_analysis')||'{}')
   const name = getUserName();
-  if(!last || !last.risk_index){ alert('Run Gather & Send first'); return }
+  if(!last || last.risk_index === undefined || last.risk_index === null){ alert('Run Gather & Send first'); return }
 
   const resp = await fetch('/report', {
       method:'POST',
