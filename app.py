@@ -66,7 +66,24 @@ def save_github_participants(participants, sha=None):
         if attempt:
             remote, current_sha = load_github_participants()
             merged = {item.get('id'): item for item in remote if item.get('id') is not None}
-            merged.update({item.get('id'): item for item in candidate if item.get('id') is not None})
+            for item in candidate:
+                item_id = item.get('id')
+                if item_id is None:
+                    continue
+                existing = merged.get(item_id)
+                if existing is None:
+                    merged[item_id] = item
+                    continue
+                existing_key = existing.get('idempotency_key')
+                candidate_key = item.get('idempotency_key')
+                if existing_key and candidate_key and existing_key != candidate_key:
+                    # Two simultaneous registrations allocated the same next ID.
+                    # Refuse to overwrite either record; caller can retry against fresh data.
+                    raise RuntimeError('Concurrent participant registration detected; please retry')
+                candidate_updated = item.get('analyzed_at') or ''
+                existing_updated = existing.get('analyzed_at') or ''
+                if candidate_updated and candidate_updated > existing_updated:
+                    merged[item_id] = item
             candidate = list(merged.values())
         payload = {
             'message': 'Update participant data',
@@ -163,7 +180,7 @@ def create_participant():
 
     try:
         participants = load_participants()
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, RuntimeError) as error:
         return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
     idempotency_key = str(data.get('idempotency_key', '')).strip()
     if idempotency_key:
