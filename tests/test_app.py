@@ -118,3 +118,23 @@ def test_excel_export_returns_workbook(client, tmp_path, monkeypatch):
     response = client.get("/export.xlsx")
     assert response.status_code == 200
     assert response.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+
+def test_csv_export_has_flattened_headers_and_rows(client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.DATA_FILE", str(tmp_path / "participants.json"))
+    from app import save_participants
+    save_participants([{
+        "id": 1, "name": "Scholar Example", "age": 16, "gender": "Prefer not to say",
+        "medical_history": "unknown", "created_at": "2026-10-29T00:00:00Z",
+        "test_scores": {"Memory_Score": 0, "Clock_Drawing_Score": None},
+        "test_status": {"Memory_Score": "completed", "Clock_Drawing_Score": "not_attempted"},
+        "raw_metrics": {"Memory_Correct_Ratio": "0/5"}, "risk_index": 100
+    }])
+    response = client.get("/export.csv")
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    content = response.get_data(as_text=True).lstrip("\ufeff")
+    assert "score_Memory_Score" in content
+    assert "test_status_Clock_Drawing_Score" in content
+    assert "Scholar Example" in content

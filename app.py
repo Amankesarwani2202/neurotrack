@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, send_file
 import numpy as np
 import io
+import csv
 import json
 import os
 import tempfile
@@ -387,6 +388,41 @@ def analyze_all():
         except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
             return jsonify({'error': f'Participant score storage is unavailable: {error}'}), 503
     return jsonify(out)
+
+@app.route('/export.csv', methods=['GET'])
+def export_participants_csv():
+    """Export one participant per row with nested metrics flattened to readable columns."""
+    try:
+        participants = load_participants()
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
+
+    output = io.StringIO(newline='')
+    writer = csv.writer(output)
+    base_columns = ['id', 'name', 'age', 'gender', 'medical_history', 'created_at', 'analyzed_at', 'risk_index']
+    score_names = sorted({key for p in participants for key in (p.get('test_scores') or {})})
+    status_names = sorted({key for p in participants for key in (p.get('test_status') or {})})
+    raw_names = sorted({key for p in participants for key in (p.get('raw_metrics') or {})})
+    spiral_names = sorted({key for p in participants for key in (p.get('spiral_details') or {})})
+    columns = base_columns + [f'test_status_{key}' for key in status_names] + [f'score_{key}' for key in score_names] + [f'raw_{key}' for key in raw_names] + [f'spiral_{key}' for key in spiral_names]
+    writer.writerow(columns)
+    for participant in participants:
+        scores = participant.get('test_scores') or {}
+        statuses = participant.get('test_status') or {}
+        raw = participant.get('raw_metrics') or {}
+        spiral = participant.get('spiral_details') or {}
+        values = [participant.get(key) for key in base_columns]
+        values += [statuses.get(key, '') for key in status_names]
+        values += [scores.get(key, '') if scores.get(key) is not None else '' for key in score_names]
+        values += [raw.get(key, '') if raw.get(key) is not None else '' for key in raw_names]
+        values += [spiral.get(key, '') if spiral.get(key) is not None else '' for key in spiral_names]
+        writer.writerow(values)
+
+    # UTF-8 BOM helps Excel detect non-ASCII participant names correctly.
+    payload = io.BytesIO(('\ufeff' + output.getvalue()).encode('utf-8'))
+    return send_file(payload, as_attachment=True, download_name='neurotrack_participants.csv',
+                     mimetype='text/csv; charset=utf-8')
+
 
 @app.route('/export.xlsx', methods=['GET'])
 def export_participants_xlsx():
