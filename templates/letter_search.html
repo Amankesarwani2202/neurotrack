@@ -201,7 +201,7 @@ function finishLetterSearch() {
   letterTimer.textContent = 'Timer stopped';
   letterStatus.textContent = `Finished all ${totalRounds} rounds. Average score ${aggregateScore}.`;
   nextBtnContainer.style.display = 'flex';
-  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
+  addNextButton('nextBtnContainer', 'View Results', '/results');
 }
 
 btnStartLetter.addEventListener('click', () => {
