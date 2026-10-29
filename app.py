@@ -303,12 +303,6 @@ def analyze_all():
     memory_total = memory_total_raw or 1
     memory_score = int(np.clip(memory_correct / memory_total * 100, 0, 100)) if memory_total_raw > 0 else None
 
-    # Clock drawing
-    clock_data = data.get('clock', {}) if isinstance(data.get('clock', {}), dict) else {}
-    clock_points_raw = clock_data.get('score_points')
-    clock_points = max(0, min(6, int(clock_points_raw))) if clock_points_raw is not None else None
-    clock_score = int(clock_points / 6.0 * 100) if clock_points is not None else None
-
     # Cookie theft
     cookie_data = data.get('cookie', {}) if isinstance(data.get('cookie', {}), dict) else {}
     cookie_score = int(np.clip(cookie_data['score'], 0, 100)) if isinstance(cookie_data.get('score'), (int, float)) else None
@@ -345,7 +339,6 @@ def analyze_all():
         'stroop':1 / 7,
         'memory':1 / 7,
         'spiral':1 / 7,
-        'clock':1 / 7,
         'cookie':1 / 7,
         'letter':1 / 7
     }
@@ -354,7 +347,6 @@ def analyze_all():
         'stroop':stroop_score,
         'memory':memory_score,
         'spiral':spiral_score,
-        'clock':clock_score,
         'cookie':cookie_score,
         'letter':letter_score
     }
@@ -374,7 +366,6 @@ def analyze_all():
             'Stroop_Score': stroop_score,
             'Memory_Score': memory_score,
             'Spiral_Score': spiral_score,
-            'Clock_Drawing_Score': clock_score,
             'Cookie_Theft_Score': cookie_score,
             'Letter_Search_Score': letter_score
         },
@@ -383,7 +374,6 @@ def analyze_all():
             'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total_raw}",
             'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2) if stroop_avg_rt is not None else None,
             'Memory_Correct_Ratio': f"{memory_correct}/{memory_total_raw}",
-            'Clock_Drawing_Points': f"{clock_points}/6",
             'Cookie_Theft_Score': cookie_score,
             'Letter_Search_Score': letter_score
         },
@@ -402,24 +392,14 @@ def analyze_all():
                         'Stroop_Score': 'completed' if stroop_total_raw >= 8 else 'not_attempted',
                         'Memory_Score': 'completed' if memory_total_raw >= 3 else 'not_attempted',
                         'Spiral_Score': 'completed' if len(spiral_points) >= 5 else 'not_attempted',
-                        'Clock_Drawing_Score': 'completed' if clock_points is not None else 'not_attempted',
                         'Cookie_Theft_Score': 'completed' if cookie_data.get('attempted') is True else 'not_attempted',
                         'Letter_Search_Score': 'completed' if isinstance(letter_data.get('rounds'), list) and len(letter_data.get('rounds')) >= 3 else 'not_attempted'
                     }
-                    participant['test_data'] = {
-                        'reaction_times': rts,
-                        'stroop': {'correct': stroop_correct, 'total': stroop_total_raw, 'avg_rt': stroop_avg_rt},
-                        'memory': {'correct': memory_correct, 'total': memory_total_raw, 'rounds': data.get('memory_rounds', [])},
-                        'clock': clock_data,
-                        'cookie_theft': cookie_data,
-                        'letter_search': letter_data,
-                        'spiral': data.get('spiral', {})
-                    }
+                    # Persist concise summary metrics only; raw trial/point payloads stay in the browser.
+                    participant.pop('test_data', None)
                     participant['raw_metrics'] = out['raw_metrics']
                     participant['spiral_details'] = out['spiral_details']
                     participant['risk_index'] = out['risk_index']
-                    participant['history_proximity_score'] = out['history_proximity_score']
-                    participant['expected_score_factor'] = out['expected_score_factor']
                     participant['analyzed_at'] = datetime.now(timezone.utc).isoformat()
                     break
             save_participants(participants)
