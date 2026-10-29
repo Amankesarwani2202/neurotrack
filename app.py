@@ -60,14 +60,27 @@ def load_github_participants():
 
 
 def save_github_participants(participants, sha=None):
-    payload = {
-        'message': 'Update participant data',
-        'content': base64.b64encode((json.dumps(participants, indent=2) + '\n').encode('utf-8')).decode('ascii')
-    }
-    if sha:
-        payload['sha'] = sha
-    github_request(method='PUT', payload=payload)
-
+    # Retry optimistic-concurrency conflicts rather than losing concurrent writes.
+    candidate, current_sha = participants, sha
+    for attempt in range(4):
+        if attempt:
+            remote, current_sha = load_github_participants()
+            merged = {item.get('id'): item for item in remote if item.get('id') is not None}
+            merged.update({item.get('id'): item for item in candidate if item.get('id') is not None})
+            candidate = list(merged.values())
+        payload = {
+            'message': 'Update participant data',
+            'content': base64.b64encode((json.dumps(candidate, indent=2) + '\\n').encode('utf-8')).decode('ascii')
+        }
+        if current_sha:
+            payload['sha'] = current_sha
+        try:
+            github_request(method='PUT', payload=payload)
+            return
+        except urllib.error.HTTPError as error:
+            if error.code not in (409, 422) or attempt == 3:
+                raise
+    raise RuntimeError('Could not save participant data after concurrency retries')
 
 def load_participants():
     if github_storage_enabled():
@@ -152,9 +165,18 @@ def create_participant():
         participants = load_participants()
     except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
         return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
+    idempotency_key = str(data.get('idempotency_key', '')).strip()
+    if idempotency_key:
+        existing = next((item for item in participants if item.get('idempotency_key') == idempotency_key), None)
+        if existing:
+            return jsonify({'participant_id': existing['id'], 'existing': True}), 200
+    name = str(data['name']).strip()
+    if not name:
+        return jsonify({'error': 'name must not be blank'}), 400
     participant = {
-        'id': max((item.get('id', 0) for item in participants), default=0) + 1,
-        'name': str(data['name']).strip(),
+        'id': max((item.get('id', 0) for item in participants if isinstance(item.get('id'), int)), default=0) + 1,
+        'idempotency_key': idempotency_key or None,
+        'name': name,
         'medical_history': data['medical_history'],
         'age': age,
         'gender': str(data['gender']).strip(),
@@ -348,6 +370,42 @@ def analyze_all():
         except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
             return jsonify({'error': f'Participant score storage is unavailable: {error}'}), 503
     return jsonify(out)
+
+@app.route('/export.xlsx', methods=['GET'])
+def export_participants_xlsx():
+    try:
+        participants = load_participants()
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
+    workbook = Workbook()
+    summary = workbook.active
+    summary.title = 'Summary'
+    summary.append(['Metric', 'Value'])
+    summary.append(['Participants', len(participants)])
+    summary.append(['Analyzed participants', sum(bool(item.get('test_scores')) for item in participants)])
+    summary.append(['Exported at (UTC)', datetime.now(timezone.utc).isoformat()])
+    sheet = workbook.create_sheet('Participants')
+    columns = ['id', 'name', 'age', 'gender', 'medical_history', 'created_at', 'analyzed_at', 'test_status', 'test_scores', 'raw_metrics', 'spiral_details', 'risk_index']
+    sheet.append(columns)
+    for item in participants:
+        sheet.append([json.dumps(item.get(key), ensure_ascii=False) if isinstance(item.get(key), (dict, list)) else item.get(key) for key in columns])
+    audit = workbook.create_sheet('Data Quality')
+    audit.append(['Issue', 'Details'])
+    audit.append(['Missing vs zero', 'Blank score cells mean missing/not attempted; numeric zero means a recorded score.'])
+    audit.append(['Legacy records', 'Legacy rows may not have test_status; do not infer attempted status from zero alone.'])
+    audit.append(['Duplicate profiles', 'Potential duplicates are not automatically merged to avoid joining different people.'])
+    for ws in workbook.worksheets:
+        ws.freeze_panes = 'A2'
+        ws.auto_filter.ref = ws.dimensions
+        for col in ws.columns:
+            width = min(max(max(len(str(cell.value or '')) for cell in col) + 2, 12), 48)
+            ws.column_dimensions[get_column_letter(col[0].column)].width = width
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name='neurotrack_participants.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 
 # Generate PDF report
 @app.route('/report', methods=['POST'])
