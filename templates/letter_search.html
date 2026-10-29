@@ -25,6 +25,8 @@ const nextBtnContainer = document.getElementById('nextBtnContainer');
 const roundLabel = document.getElementById('roundLabel');
 const btnStartLetter = document.getElementById('btnStartLetter');
 const totalRounds = 3;
+const ROUND_TIME_LIMIT_MS = 60000;
+let roundActive = false;
 let targetLetter = 'A';
 let letters = [];
 let totalTargets = 0;
@@ -95,11 +97,18 @@ function handleCellTap(index, button) {
 }
 
 function startTimer() {
+  stopTimer();
   startTime = performance.now();
-  if (timerInterval) clearInterval(timerInterval);
+  letterTimer.textContent = 'Time: 0.00s';
   timerInterval = setInterval(() => {
-    const elapsed = (performance.now() - startTime) / 1000;
+    if (!roundActive) {
+      stopTimer();
+      return;
+    }
+    const elapsedMs = performance.now() - startTime;
+    const elapsed = Math.min(elapsedMs, ROUND_TIME_LIMIT_MS) / 1000;
     letterTimer.textContent = `Time: ${elapsed.toFixed(2)}s`;
+    if (elapsedMs >= ROUND_TIME_LIMIT_MS) completeRound(true);
   }, 50);
 }
 
@@ -127,16 +136,20 @@ function calculateLetterScore(timeMs, found, wrong) {
 
 // Starts a round: builds a fresh grid, speaks the new target letter, and starts the timer.
 function startRound() {
+  roundActive = true;
   buildGrid();
   speakLetter();
   startTimer();
-  letterStatus.textContent = `Round ${roundIndex + 1} started. Tap every target letter.`;
+  letterStatus.textContent = `Round ${roundIndex + 1} started. Tap every target letter. You have 60 seconds.`;
 }
 
 // Called automatically the instant all target letters in the current round have been found.
-function completeRound() {
+function completeRound(timedOut = false) {
+  if (!roundActive) return;
+  roundActive = false;
+  const elapsed = Math.min(performance.now() - startTime, ROUND_TIME_LIMIT_MS);
   stopTimer();
-  const elapsed = performance.now() - startTime;
+  gridEl.querySelectorAll('button').forEach(button => { button.disabled = true; });
   const leftTargets = letters.filter((cell, index) => cell.target && index % 2 === 0).length;
   const leftFound = letters.filter((cell, index) => (index % 2 === 0) && cell.target && cell.tapped).length;
   const rightTargets = totalTargets - leftTargets;
@@ -148,7 +161,8 @@ function completeRound() {
     time_ms: Math.round(elapsed),
     correct_found: foundCount,
     wrong_tapped: wrongCount,
-    missed: 0,
+    missed: Math.max(0, totalTargets - foundCount),
+    timed_out: timedOut,
     total_targets: totalTargets,
     side_misses: sideMisses,
     score: score,
@@ -176,6 +190,8 @@ function finishLetterSearch() {
     saved_at: Date.now()
   };
   localStorage.setItem('neuro_letter', JSON.stringify(aggregatePayload));
+  stopTimer();
+  roundActive = false;
   letterStatus.textContent = `Finished all ${totalRounds} rounds. Average score ${aggregateScore}.`;
   nextBtnContainer.style.display = 'flex';
   addNextButton('nextBtnContainer', 'Results', '/results');
