@@ -2,7 +2,7 @@
 {% block content %}
 <section class="card">
   <h2>Session Results</h2>
-  <p class="muted">Once all seven tests are complete, NeuroTrack automatically submits the session for analysis and saves the results.</p>
+  <p class="muted">Once all six tests are complete, NeuroTrack automatically submits the session for analysis and saves the results.</p>
   <div id="completionStatus" class="muted" role="status" aria-live="polite" style="margin-top:12px">Checking test completion…</div>
   <div class="row" style="margin-top:14px">
     <button class="btn ghost" id="btnDownload" disabled>Download PDF</button>
@@ -16,7 +16,6 @@ const requiredTests = [
   ['Reaction Time', 'neuro_rt_trials', value => Array.isArray(value) && value.length >= 5],
   ['Stroop', 'neuro_stroop', value => value && Number(value.total) >= 8],
   ['Memory', 'neuro_memory', value => value && Number(value.total) >= 3 && Array.isArray(value.rounds) && value.rounds.length >= 3],
-  ['Clock Drawing', 'neuro_clock', value => value && Number.isFinite(Number(value.score_points))],
   ['Cookie Theft', 'neuro_cookie', value => value && value.attempted === true && Number.isFinite(Number(value.score))],
   ['Letter Search', 'neuro_letter', value => value && Array.isArray(value.rounds) && value.rounds.length >= 3 && Number.isFinite(Number(value.average_score))],
   ['Spiral', 'neuro_spiral', value => Array.isArray(value) && value.length >= 3 && value.every(round => Array.isArray(round.points) && round.points.length >= 5)]
@@ -49,7 +48,6 @@ async function gatherAndSend() {
   const rt = parsed.neuro_rt_trials;
   const stroop = parsed.neuro_stroop;
   const mem = parsed.neuro_memory;
-  const clock = readJSON('neuro_clock', {});
   const cookie = parsed.neuro_cookie;
   const letter = parsed.neuro_letter;
   const spiral = parsed.neuro_spiral;
@@ -67,13 +65,12 @@ async function gatherAndSend() {
     memory_correct: mem.correct,
     memory_total: mem.total,
     memory_rounds: mem.rounds,
-    clock,
     cookie,
     letter,
     spiral: {points: spiral.flatMap(round => round.points || []), rounds: spiral}
   };
 
-  status.textContent = 'All seven tests are complete. Sending results securely…';
+  status.textContent = 'All six tests are complete. Sending results securely…';
   out.textContent = '';
   try {
     const resp = await fetch('/analyze_all', {
