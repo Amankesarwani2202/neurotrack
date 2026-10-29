@@ -226,9 +226,11 @@ def create_participant():
     participants.append(participant)
     try:
         save_participants(participants)
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, RuntimeError) as error:
         return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
-    response = make_response(jsonify({'participant_id': participant['id']}), 201)\n    response.set_cookie('neuro_participant_id', str(participant['id']), httponly=True, secure=bool(os.environ.get('VERCEL')), samesite='Lax', max_age=60 * 60 * 24 * 30)\n    return response
+    response = make_response(jsonify({'participant_id': participant['id']}), 201)
+    response.set_cookie('neuro_participant_id', str(participant['id']), httponly=True, secure=bool(os.environ.get('VERCEL')), samesite='Lax', max_age=60 * 60 * 24 * 30)
+    return response
 
 
 @app.route('/participants', methods=['GET'])
