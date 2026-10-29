@@ -40,7 +40,7 @@ def require_registered_participant():
 DEFAULT_DATA_FILE = '/tmp/participants.json' if os.environ.get('VERCEL') else os.path.join(os.path.dirname(__file__), 'participants.json')
 DATA_FILE = os.environ.get('NEUROTRACK_DATA_FILE', DEFAULT_DATA_FILE)
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
-GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY')
+GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', 'Amankesarwani2202/neurotrack-data')
 GITHUB_DATA_PATH = os.environ.get('GITHUB_DATA_PATH', 'participants.json')
 
 
@@ -188,6 +188,8 @@ def health():
 
 @app.route('/participants', methods=['POST'])
 def create_participant():
+    if os.environ.get('VERCEL') and not github_storage_enabled():
+        return jsonify({'error': 'Private repository storage is not configured. Please contact the administrator.'}), 503
     data = request.json or {}
     required = ('name', 'medical_history', 'age', 'gender')
     if any(not data.get(field) for field in required):
