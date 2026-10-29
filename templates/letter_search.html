@@ -76,7 +76,7 @@ function buildGrid() {
 }
 
 function handleCellTap(index, button) {
-  if (!startTime) return;
+  if (!roundActive || !startTime) return;
   const cell = letters[index];
   if (cell.tapped) return;
   cell.tapped = true;
@@ -119,6 +119,7 @@ function stopTimer() {
 
 function speakLetter() {
   if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(targetLetter);
     utterance.rate = 0.9;
     window.speechSynthesis.speak(utterance);
@@ -170,10 +171,13 @@ function completeRound(timedOut = false) {
   };
   roundResults.push(payload);
 
+  letterTimer.textContent = `Round time: ${(elapsed / 1000).toFixed(2)}s${timedOut ? ' (time limit reached)' : ''}`;
   if (roundIndex < totalRounds - 1) {
     roundIndex++;
-    letterStatus.textContent = `Round ${roundIndex} complete! Starting next round...`;
-    setTimeout(startRound, 1000);
+    letterStatus.textContent = `Round ${roundIndex} complete. The timer is stopped. Next round starts in 1 second...`;
+    setTimeout(() => {
+      if (roundIndex < totalRounds) startRound();
+    }, 1000);
   } else {
     finishLetterSearch();
   }
@@ -192,6 +196,9 @@ function finishLetterSearch() {
   localStorage.setItem('neuro_letter', JSON.stringify(aggregatePayload));
   stopTimer();
   roundActive = false;
+  startTime = 0;
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  letterTimer.textContent = 'Timer stopped';
   letterStatus.textContent = `Finished all ${totalRounds} rounds. Average score ${aggregateScore}.`;
   nextBtnContainer.style.display = 'flex';
   addNextButton('nextBtnContainer', 'Results', '/results');
