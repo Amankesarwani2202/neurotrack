@@ -19,7 +19,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 app = Flask(__name__)
 
 PROTECTED_GAME_PATHS = {
-    '/reaction', '/stroop', '/memory', '/clock',
+    '/reaction', '/stroop', '/memory',
     '/cookie-theft', '/letter-search', '/spiral', '/results'
 }
 
@@ -160,10 +160,6 @@ def stroop():
 @app.route('/memory')
 def memory():
     return render_template('memory.html')
-
-@app.route('/clock')
-def clock():
-    return render_template('clock.html')
 
 @app.route('/cookie-theft')
 def cookie_theft():
