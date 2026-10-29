@@ -65,6 +65,20 @@
         }
     }
   </script>
+  <script>
+    // Client-side fallback: block direct game-page access until participant details are saved.
+    // The Flask before_request guard remains the server-side protection.
+    (function(){
+      const protectedPaths = new Set([
+        '/reaction', '/stroop', '/memory', '/cookie-theft',
+        '/letter-search', '/spiral', '/results'
+      ]);
+      if (protectedPaths.has(window.location.pathname) &&
+          !localStorage.getItem('neuro_participant_id')) {
+        window.location.replace('/?participant_required=1');
+      }
+    })();
+  </script>
   <script src="/static/js/main.js"></script>
   {% block scripts %}{% endblock %}
 </body>
