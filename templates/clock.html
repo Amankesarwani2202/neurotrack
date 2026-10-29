@@ -109,6 +109,11 @@ document.getElementById('btnSaveScore').addEventListener('click', () => {
   document.getElementById('clockResult').textContent = `Clock score saved: ${total}/6 (${score}). Under 4 suggests a real problem.`;
   nextBtnContainer.style.display = 'flex';
   addNextButton('nextBtnContainer', 'Submit Results', '/results');
+  document.getElementById('btnSaveScore').disabled = true;
+  document.getElementById('btnClearClock').disabled = true;
+  document.getElementById('btnSaveClock').disabled = true;
+  document.getElementById('clockResult').textContent += ' All tests complete — sending results automatically…';
+  setTimeout(() => window.location.assign('/results'), 1200);
 });
 </script>
 {% endblock %}
