@@ -35,7 +35,7 @@ def test_famous_faces_is_removed_and_letter_search_uses_multiple_rounds(client):
     assert "totalrounds = 3" in letter_html
 
 
-def test_participant_json_storage_and_unknown_history_nulls_scores(client, tmp_path, monkeypatch):
+def test_participant_json_storage_and_unknown_history_scores_are_saved(client, tmp_path, monkeypatch):
     monkeypatch.setattr("app.DATA_FILE", str(tmp_path / "participants.json"))
     response = client.post("/participants", json={
         "name": "Test Participant",
@@ -55,7 +55,9 @@ def test_participant_json_storage_and_unknown_history_nulls_scores(client, tmp_p
     assert analysis.status_code == 200
     assert analysis.get_json()["spiral_details"]["spiral_score"] > 0
     assert analysis.get_json()["expected_score_factor"] is None
-    assert client.get("/participants").get_json()[0]["test_scores"] is None
+    saved = client.get("/participants").get_json()[0]
+    assert saved["test_scores"]["Spiral_Score"] > 0
+    assert saved["test_status"]["Reaction_Time_Score"] == "not_attempted"
 
 
 def test_cookie_theft_has_six_requested_options(client):
@@ -70,3 +72,49 @@ def test_cookie_theft_has_six_requested_options(client):
     assert "The clothes are drying." in html
     assert "Someone is talking on the phone." in html
     assert "A dog is under the table." in html
+
+
+
+def test_unattempted_tests_are_null_not_zero(client):
+    response = client.post("/analyze_all", json={})
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result["subscores"]["Reaction_Time_Score"] is None
+    assert result["subscores"]["Stroop_Score"] is None
+    assert result["subscores"]["Memory_Score"] is None
+    assert result["subscores"]["Clock_Drawing_Score"] is None
+    assert result["risk_index"] is None
+
+
+def test_stroop_zero_correct_never_gets_speed_bonus(client):
+    response = client.post("/analyze_all", json={
+        "stroop_correct": 0,
+        "stroop_total": 8,
+        "stroop_avg_rt": 0,
+    })
+    assert response.status_code == 200
+    assert response.get_json()["subscores"]["Stroop_Score"] == 0
+
+
+def test_registration_idempotency_key_prevents_duplicate_records(client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.DATA_FILE", str(tmp_path / "participants.json"))
+    payload = {
+        "name": "Test Participant",
+        "medical_history": "unknown",
+        "age": 42,
+        "gender": "Prefer not to say",
+        "idempotency_key": "stable-test-key",
+    }
+    first = client.post("/participants", json=payload)
+    second = client.post("/participants", json=payload)
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert first.get_json()["participant_id"] == second.get_json()["participant_id"]
+    assert len(client.get("/participants").get_json()) == 1
+
+
+def test_excel_export_returns_workbook(client, tmp_path, monkeypatch):
+    monkeypatch.setattr("app.DATA_FILE", str(tmp_path / "participants.json"))
+    response = client.get("/export.xlsx")
+    assert response.status_code == 200
+    assert response.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
