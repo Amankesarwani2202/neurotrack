@@ -108,7 +108,7 @@ document.getElementById('btnSaveScore').addEventListener('click', () => {
   localStorage.setItem('neuro_clock', JSON.stringify(payload));
   document.getElementById('clockResult').textContent = `Clock score saved: ${total}/6 (${score}). Under 4 suggests a real problem.`;
   nextBtnContainer.style.display = 'flex';
-  addNextButton('nextBtnContainer', 'Spiral', '/spiral');
+  addNextButton('nextBtnContainer', 'Submit Results', '/results');
 });
 </script>
 {% endblock %}
