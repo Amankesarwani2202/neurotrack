@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, redirect, make_response
 import numpy as np
 import io
 import csv
@@ -17,6 +17,26 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 app = Flask(__name__)
+
+PROTECTED_GAME_PATHS = {
+    '/reaction', '/stroop', '/memory', '/clock',
+    '/cookie-theft', '/letter-search', '/spiral', '/results'
+}
+
+@app.before_request
+def require_registered_participant():
+    if request.path not in PROTECTED_GAME_PATHS:
+        return None
+    raw_id = request.cookies.get('neuro_participant_id')
+    try:
+        participant_id = int(raw_id or '')
+        participants = load_participants()
+        if any(item.get('id') == participant_id for item in participants):
+            return None
+    except (ValueError, OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, RuntimeError):
+        pass
+    return redirect('/?participant_required=1')
+
 DEFAULT_DATA_FILE = '/tmp/participants.json' if os.environ.get('VERCEL') else os.path.join(os.path.dirname(__file__), 'participants.json')
 DATA_FILE = os.environ.get('NEUROTRACK_DATA_FILE', DEFAULT_DATA_FILE)
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
@@ -206,7 +226,7 @@ def create_participant():
         save_participants(participants)
     except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
         return jsonify({'error': f'Participant storage is unavailable: {error}'}), 503
-    return jsonify({'participant_id': participant['id']}), 201
+    response = make_response(jsonify({'participant_id': participant['id']}), 201)\n    response.set_cookie('neuro_participant_id', str(participant['id']), httponly=True, secure=bool(os.environ.get('VERCEL')), samesite='Lax', max_age=60 * 60 * 24 * 30)\n    return response
 
 
 @app.route('/participants', methods=['GET'])
