@@ -238,7 +238,7 @@ def analyze_all():
     rts = [float(value) for value in rts if isinstance(value, (int, float)) and np.isfinite(value) and value > 0]
     mean_rt = float(np.mean(rts)) if rts else None
     # map 150ms -> best(100), 1000ms -> worst(0)
-    val = (mean_rt - 150)/(1000-150)
+    val = (mean_rt - 150)/(1000-150) if mean_rt is not None else 1
     val = np.clip(val,0,1)
     reaction_score = int((1-val)*100) if mean_rt is not None else None
 
@@ -341,9 +341,9 @@ def analyze_all():
         },
         'raw_metrics': {
             'Reaction_Avg_ms': round(mean_rt, 2) if mean_rt is not None else None,
-            'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total}",
+            'Stroop_Correct_Ratio': f"{stroop_correct}/{stroop_total_raw}",
             'Stroop_Avg_RT_ms': round(stroop_avg_rt, 2) if stroop_avg_rt is not None else None,
-            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total}",
+            'Memory_Correct_Ratio': f"{memory_correct}/{memory_total_raw}",
             'Clock_Drawing_Points': f"{clock_points}/6",
             'Cookie_Theft_Score': cookie_score,
             'Letter_Search_Score': letter_score
