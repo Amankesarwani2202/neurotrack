@@ -231,7 +231,8 @@ def create_participant():
 
 @app.route('/participants', methods=['GET'])
 def list_participants():
-    return jsonify(load_participants())
+    # Participant records include personal and health-related data; never expose them publicly.
+    return jsonify({'error': 'Not found'}), 404
 
 # Spiral analysis: expects points list [{x,y,t},...]
 def analyze_spiral(points):
@@ -396,7 +397,24 @@ def analyze_all():
             for participant in participants:
                 if participant.get('id') == participant_id:
                     participant['test_scores'] = out['subscores']
-                    participant['test_status'] = {key: ('completed' if value is not None else 'not_attempted') for key, value in out['subscores'].items()}
+                    participant['test_status'] = {
+                        'Reaction_Time_Score': 'completed' if len(rts) >= 5 else 'not_attempted',
+                        'Stroop_Score': 'completed' if stroop_total_raw >= 8 else 'not_attempted',
+                        'Memory_Score': 'completed' if memory_total_raw >= 3 else 'not_attempted',
+                        'Spiral_Score': 'completed' if len(spiral_points) >= 5 else 'not_attempted',
+                        'Clock_Drawing_Score': 'completed' if clock_points is not None else 'not_attempted',
+                        'Cookie_Theft_Score': 'completed' if cookie_data.get('attempted') is True else 'not_attempted',
+                        'Letter_Search_Score': 'completed' if isinstance(letter_data.get('rounds'), list) and len(letter_data.get('rounds')) >= 3 else 'not_attempted'
+                    }
+                    participant['test_data'] = {
+                        'reaction_times': rts,
+                        'stroop': {'correct': stroop_correct, 'total': stroop_total_raw, 'avg_rt': stroop_avg_rt},
+                        'memory': {'correct': memory_correct, 'total': memory_total_raw, 'rounds': data.get('memory_rounds', [])},
+                        'clock': clock_data,
+                        'cookie_theft': cookie_data,
+                        'letter_search': letter_data,
+                        'spiral': data.get('spiral', {})
+                    }
                     participant['raw_metrics'] = out['raw_metrics']
                     participant['spiral_details'] = out['spiral_details']
                     participant['risk_index'] = out['risk_index']
@@ -405,7 +423,7 @@ def analyze_all():
                     participant['analyzed_at'] = datetime.now(timezone.utc).isoformat()
                     break
             save_participants(participants)
-        except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, RuntimeError) as error:
             return jsonify({'error': f'Participant score storage is unavailable: {error}'}), 503
     return jsonify(out)
 
